@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="프리미엄 로그인 화면 데모">
+    <title>너의두컷</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+</head>
+<body>
+    <!-- Dynamic background elements -->
+    <div class="background-shapes">
+        <div class="shape shape-1"></div>
+        <div class="shape shape-2"></div>
+        <div class="shape shape-3"></div>
+    </div>
+
+    <!-- Home Page (Instagram Style Dashboard) -->
+    <div id="home-page" class="page dashboard">
+        <nav class="sidebar">
+            <div class="brand">
+                <i class="ph ph-instagram-logo"></i>
+                <span class="brand-text">너<span class="collapsible">의</span>두<span class="collapsible">컷</span></span>
+            </div>
+            
+            <div class="nav-links">
+                <a href="#" class="nav-item active" id="nav-home-btn">
+                    <i class="ph-fill ph-house"></i>
+                    <span>홈</span>
+                </a>
+
+                <a href="#" class="nav-item" id="nav-search-btn">
+                    <i class="ph ph-magnifying-glass"></i>
+                    <span>검색</span>
+                </a>
+                <a href="#" class="nav-item">
+                    <i class="ph ph-compass"></i>
+                    <span>탐색</span>
+                </a>
+                <a href="#" class="nav-item">
+                    <div class="icon-wrapper">
+                        <i class="ph ph-heart"></i>
+                        <span class="badge dot-badge"></span>
+                    </div>
+                    <span>알림</span>
+                </a>
+                <a href="#" class="nav-item">
+                    <img src="https://ui-avatars.com/api/?name=User&background=333&color=fff&rounded=true" alt="프로필" class="profile-pic">
+                    <span>프로필</span>
+                </a>
+            </div>
+
+            <div class="sidebar-bottom">
+                <div class="more-container">
+                    <button class="nav-item more-btn" id="more-btn">
+                        <i class="ph ph-list"></i>
+                        <span>더 보기</span>
+                    </button>
+                    
+                    <!-- More Popup Menu -->
+                    <div class="more-menu" id="more-menu">
+                        <a href="#" class="menu-item"><i class="ph ph-gear"></i>설정</a>
+                        <a href="#" class="menu-item"><i class="ph ph-chart-line-up"></i>내 활동</a>
+                        <a href="#" class="menu-item"><i class="ph ph-bookmark-simple"></i>저장됨</a>
+                        <a href="#" class="menu-item" id="theme-toggle-btn"><i class="ph ph-moon" id="theme-icon"></i>모드 전환</a>
+                        <a href="#" class="menu-item"><i class="ph ph-warning-circle"></i>문제 신고</a>
+                        <div class="menu-divider"></div>
+                        <a href="#" class="menu-item" id="logout-btn">로그아웃</a>
+                    </div>
+                </div>
+            </div>
+        </nav>
+        
+        <main class="feed-content">
+            <!-- Feed Tabs -->
+            <div class="feed-tabs">
+                <button class="feed-tab active" data-type="latest">최신 피드</button>
+                <button class="feed-tab" data-type="popular">인기 피드</button>
+                <button class="feed-tab" data-type="related">관련 피드</button>
+            </div>
+            
+            <!-- Popular Sub-tabs -->
+            <div id="popular-subtabs" class="sub-tabs hidden">
+                <button class="sub-tab active" data-time="alltime">All time</button>
+                <button class="sub-tab" data-time="year">Year</button>
+                <button class="sub-tab" data-time="month">Month</button>
+                <button class="sub-tab" data-time="week">Week</button>
+                <button class="sub-tab" data-time="day">Day</button>
+            </div>
+
+            <div class="feed-placeholder">
+                <h2>홈 피드</h2>
+                <p>팔로우하는 사람들의 최근 게시물이 여기에 표시됩니다.</p>
+            </div>
+
+            <!-- Feed Stream -->
+            <div id="feed-stream" class="feed-stream">
+                <!-- 새 게시물이 추가되는 곳 -->
+            </div>
+
+            <!-- Post Creation Area -->
+            <div id="image-preview-container" class="image-preview-container hidden"></div>
+            <div class="post-create-container rounded-chat">
+                <input type="file" id="image-upload-input" accept="image/*" multiple style="display: none;">
+                <button id="add-photo-btn"><i class="ph ph-plus"></i></button>
+                <div class="post-input-wrapper">
+                    <input type="text" id="new-post-input" placeholder="메시지 입력...">
+                </div>
+                <button id="post-submit-btn" class="send-btn"><i class="ph-bold ph-arrow-up"></i></button>
+            </div>
+        </main>
+        
+        <!-- Search Content -->
+        <main class="search-content hidden">
+            <div class="search-bar-container">
+                <i class="ph ph-magnifying-glass"></i>
+                <input type="text" id="search-input" placeholder="검색어를 입력하세요...">
+                <button id="search-submit-btn" class="text-btn">검색</button>
+            </div>
+            <div id="search-results" class="feed-stream">
+                <!-- Search results will appear here -->
+            </div>
+        </main>
+    </div>
+
+    <!-- Login Page -->
+    <div id="login-page" class="page">
+        <div class="glass-card">
+            <h2>로그인</h2>
+            <form id="login-form">
+                <div class="input-group">
+                    <label for="user-id">아이디</label>
+                    <input type="text" id="user-id" placeholder="아이디를 입력하세요" required>
+                </div>
+                <div class="input-group">
+                    <label for="user-pw">비밀번호</label>
+                    <input type="password" id="user-pw" placeholder="비밀번호를 입력하세요" required>
+                </div>
+                <button type="submit" class="btn btn-primary btn-full">로그인</button>
+            </form>
+            <div class="card-footer">
+                <button id="go-find-btn" class="text-btn">아이디/비번 찾기</button>
+                <button id="go-signup-btn" class="text-btn">회원가입</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Find ID/PW Page -->
+    <div id="find-page" class="page">
+        <div class="glass-card">
+            <h2>아이디/비밀번호 찾기</h2>
+            <p class="desc">가입 시 등록한 이메일을 입력해주세요.</p>
+            <form id="find-form">
+                <div class="input-group">
+                    <label for="find-email">이메일</label>
+                    <input type="email" id="find-email" placeholder="이메일을 입력하세요" required>
+                </div>
+                <button type="submit" class="btn btn-primary btn-full">찾기</button>
+            </form>
+            <div class="card-footer center">
+                <button id="back-login-from-find" class="text-btn">로그인으로 돌아가기</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sign Up Page -->
+    <div id="signup-page" class="page">
+        <div class="glass-card">
+            <h2>회원가입</h2>
+            <form id="signup-form">
+                <div class="input-group">
+                    <label for="new-id">아이디</label>
+                    <input type="text" id="new-id" placeholder="사용할 아이디" required>
+                </div>
+                <div class="input-group">
+                    <label for="new-pw">비밀번호</label>
+                    <input type="password" id="new-pw" placeholder="사용할 비밀번호" required>
+                </div>
+                <div class="input-group">
+                    <label for="new-email">이메일</label>
+                    <input type="email" id="new-email" placeholder="사용할 이메일" required>
+                </div>
+                <button type="submit" class="btn btn-primary btn-full">가입하기</button>
+            </form>
+            <div class="card-footer center">
+                <button id="back-login-from-signup" class="text-btn">로그인으로 돌아가기</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
