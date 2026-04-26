@@ -988,7 +988,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function setAdminView(view) {
         state.currentAdminView = view || 'posts';
-        els.adminTabs.forEach(tab => tab.classList.toggle('active', tab.dataset.adminView === state.currentAdminView));
+        const tabs = Array.from(els.adminTabs);
+        const activeIndex = Math.max(0, tabs.findIndex(tab => tab.dataset.adminView === state.currentAdminView));
+        tabs[0]?.parentElement?.style.setProperty('--admin-tab-index', activeIndex);
+        els.adminTabs.forEach(tab => {
+            const selected = tab.dataset.adminView === state.currentAdminView;
+            tab.classList.toggle('active', selected);
+            tab.setAttribute('aria-selected', selected ? 'true' : 'false');
+        });
         els.adminPanels.forEach(panel => panel.classList.toggle('hidden', panel.dataset.adminPanel !== state.currentAdminView));
     }
 
@@ -1010,6 +1017,18 @@ document.addEventListener('DOMContentLoaded', () => {
         const result = await response.json();
         if (!response.ok) throw new Error(result.detail || '요청에 실패했습니다.');
         return result;
+    }
+
+    function downloadJsonFile(filename, data) {
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
     }
 
     function escapeHtml(value = '') {
@@ -2484,12 +2503,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     <p>@${escapeHtml(order.user_id)} · 책 #${order.book_id}</p>
                     <small>생성 ${new Date(`${order.created_at}Z`).toLocaleString()} · 수정 ${new Date(`${order.updated_at}Z`).toLocaleString()}</small>
                 </div>
-                <select class="admin-status-select">
-                    <option value="pending">pending</option>
-                    <option value="processing">processing</option>
-                    <option value="completed">completed</option>
-                    <option value="cancelled">cancelled</option>
-                </select>
+                <div class="admin-order-actions">
+                    <button type="button" class="admin-export-btn">파트너 JSON</button>
+                    <select class="admin-status-select">
+                        <option value="pending">pending</option>
+                        <option value="processing">processing</option>
+                        <option value="completed">completed</option>
+                        <option value="cancelled">cancelled</option>
+                    </select>
+                </div>
             `;
             const select = row.querySelector('.admin-status-select');
             select.value = order.status;
@@ -2497,6 +2519,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 try {
                     await postData(`/api/admin/orders/${order.id}/status`, { token: state.adminToken, status: select.value });
                     await loadAdminOrders();
+                } catch (error) {
+                    alert(error.message);
+                }
+            });
+            row.querySelector('.admin-export-btn')?.addEventListener('click', async () => {
+                try {
+                    const res = await fetch(`/api/admin/orders/${order.id}/partner-export?token=${encodeURIComponent(state.adminToken)}`);
+                    const payload = await res.json();
+                    if (!res.ok) throw new Error(payload.detail || '파트너 JSON을 만들지 못했습니다.');
+                    downloadJsonFile(`hook-order-${order.id}-partner-export.json`, payload);
                 } catch (error) {
                     alert(error.message);
                 }

@@ -720,6 +720,67 @@ def serialize_admin_order(order: HookOrderDB, db: Session):
     }
 
 
+def build_partner_order_export(order: HookOrderDB, db: Session):
+    book = db.query(HookBookDB).filter(HookBookDB.id == order.book_id).first()
+    customer = get_user(db, order.user_id)
+    post_ids = parse_post_ids(book.post_ids) if book else []
+    posts = db.query(PostDB).filter(PostDB.id.in_(post_ids)).all() if post_ids else []
+    posts_by_id = {post.id: post for post in posts}
+    ordered_posts = [posts_by_id[post_id] for post_id in post_ids if post_id in posts_by_id]
+
+    return {
+        "schema_version": "partner-order-export.v1",
+        "exported_at": datetime.utcnow().isoformat(),
+        "partner": {
+            "name": "Virtual HOOK Book Partner",
+            "handoff_type": "book_order_payload",
+            "format": "json",
+        },
+        "order": {
+            "id": order.id,
+            "status": order.status,
+            "memo": order.memo or "",
+            "created_at": order.created_at.isoformat(),
+            "updated_at": order.updated_at.isoformat(),
+        },
+        "customer": {
+            "user_id": order.user_id,
+            "display_name": customer.display_name if customer and customer.display_name else order.user_id,
+            "profile_image": customer.profile_image if customer else "",
+        },
+        "book": {
+            "id": book.id if book else order.book_id,
+            "title": book.title if book else f"HOOK 책 #{order.book_id}",
+            "source_type": book.source_type if book else "",
+            "status": book.status if book else "",
+            "post_ids": post_ids,
+            "created_at": book.created_at.isoformat() if book else "",
+            "updated_at": book.updated_at.isoformat() if book else "",
+        },
+        "contents": [
+            {
+                "sequence": index + 1,
+                "post_id": post.id,
+                "author_id": post.author_id,
+                "content": post.content or "",
+                "images": [item for item in (post.image_paths or "").split(",") if item],
+                "metrics": {
+                    "likes": post.likes,
+                    "views": post.views,
+                    "reply_count": db.query(ReplyDB).filter(ReplyDB.post_id == post.id).count(),
+                },
+                "flags": {
+                    "author_deleted": bool(post.author_deleted),
+                    "admin_deleted": bool(post.admin_deleted),
+                },
+                "created_at": post.created_at.isoformat(),
+            }
+            for index, post in enumerate(ordered_posts)
+        ],
+        "fulfillment_note": "This is a virtual partner payload. No real production or payment is triggered.",
+    }
+
+
 def serialize_report(report: ReportDB, db: Session):
     target = None
     post = None
@@ -1447,6 +1508,15 @@ def admin_get_orders(token: str, q: str = "", db: Session = Depends(get_db)):
         )
     orders = query.order_by(HookOrderDB.updated_at.desc()).limit(100).all()
     return [serialize_admin_order(order, db) for order in orders]
+
+
+@app.get("/api/admin/orders/{order_id}/partner-export")
+def admin_export_order_for_partner(order_id: int, token: str, db: Session = Depends(get_db)):
+    require_admin(db, token)
+    order = db.query(HookOrderDB).filter(HookOrderDB.id == order_id).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="주문을 찾을 수 없습니다.")
+    return build_partner_order_export(order, db)
 
 
 @app.get("/api/admin/reports")
