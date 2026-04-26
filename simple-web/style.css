@@ -1190,6 +1190,10 @@ body.light-mode .sub-tab.active {
     pointer-events: auto;
 }
 
+.command-mode-overlay.selection-on .command-mode-panel {
+    width: min(560px, calc(100vw - 36px));
+}
+
 .command-mode-main {
     width: 100%;
     display: grid;
@@ -1264,11 +1268,73 @@ body.light-mode .sub-tab.active {
     cursor: pointer;
 }
 
+.command-selection-status {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px;
+    border: 1px solid rgba(96, 165, 250, 0.32);
+    border-radius: 22px;
+    background: rgba(15, 23, 42, 0.68);
+    padding: 12px 14px;
+}
+
+.command-selection-status.hidden {
+    display: none !important;
+}
+
+.command-selection-status strong,
+.command-selection-status span {
+    display: block;
+}
+
+.command-selection-status strong {
+    color: #bfdbfe;
+    font-size: 0.86rem;
+    letter-spacing: 0.02em;
+}
+
+.command-selection-status span {
+    color: #e5edf8;
+    font-size: 0.9rem;
+    margin-top: 2px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.command-selection-keys {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.command-selection-keys kbd {
+    min-width: 26px;
+    border: 1px solid rgba(191, 219, 254, 0.28);
+    border-radius: 9px;
+    background: rgba(96, 165, 250, 0.13);
+    color: #dbeafe;
+    padding: 4px 7px;
+    font: inherit;
+    font-size: 0.74rem;
+    font-weight: 900;
+    text-align: center;
+}
+
+.command-selection-keys span {
+    color: #93a4b8;
+    font-size: 0.74rem;
+    margin-right: 4px;
+}
+
 .command-mode-history {
     display: flex;
     flex-direction: column;
     gap: 8px;
-    max-height: 160px;
+    max-height: 260px;
     overflow-y: auto;
     padding: 2px;
 }
@@ -1328,6 +1394,20 @@ body.light-mode .sub-tab.active {
 
 .command-mode-entry.error .command-mode-entry-dot {
     background: #fb7185;
+}
+
+.command-selected {
+    outline: 2px solid rgba(96, 165, 250, 0.9) !important;
+    outline-offset: 5px;
+    box-shadow: 0 0 0 7px rgba(96, 165, 250, 0.12), 0 18px 42px rgba(37, 99, 235, 0.16) !important;
+}
+
+.feed-post.command-selected,
+.notification-card.command-selected,
+.search-user-card.command-selected,
+.hook-book-card.command-selected,
+.hook-source-main.command-selected {
+    border-color: rgba(96, 165, 250, 0.72) !important;
 }
 
 @keyframes command-shake {
@@ -4244,6 +4324,30 @@ body.light-mode #command-mode-close-btn {
     color: #334155;
 }
 
+body.light-mode .command-selection-status {
+    background: #f8fbff;
+    border-color: #bfdbfe;
+}
+
+body.light-mode .command-selection-status strong {
+    color: #2563eb;
+}
+
+body.light-mode .command-selection-status span {
+    color: #334155;
+}
+
+body.light-mode .command-selection-keys kbd {
+    background: #eff6ff;
+    border-color: #bfdbfe;
+    color: #1d4ed8;
+}
+
+body.light-mode .command-selected {
+    outline-color: rgba(37, 99, 235, 0.86) !important;
+    box-shadow: 0 0 0 7px rgba(37, 99, 235, 0.11), 0 18px 42px rgba(37, 99, 235, 0.12) !important;
+}
+
 body.light-mode .admin-page {
     background: #ffffff;
 }
@@ -4409,5 +4513,13 @@ body.light-mode .settings-list-divider {
 
     .command-mode-copy {
         display: none;
+    }
+
+    .command-selection-status {
+        grid-template-columns: 1fr;
+    }
+
+    .command-selection-keys {
+        justify-content: flex-start;
     }
 }

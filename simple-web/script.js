@@ -41,6 +41,8 @@ document.addEventListener('DOMContentLoaded', () => {
         feedOffset: 0,
         feedHasMore: false,
         feedLoadingMore: false,
+        commandSelectionMode: false,
+        commandSelectedElement: null,
         selectedImages: [],
         dragCounter: 0
     };
@@ -169,6 +171,8 @@ document.addEventListener('DOMContentLoaded', () => {
         commandModeOverlay: document.getElementById('command-mode-overlay'),
         commandModeInput: document.getElementById('command-mode-input'),
         commandModeHistory: document.getElementById('command-mode-history'),
+        commandSelectionStatus: document.getElementById('command-selection-status'),
+        commandSelectionLabel: document.getElementById('command-selection-label'),
         commandModeCloseBtn: document.getElementById('command-mode-close-btn'),
         adminLoginForm: document.getElementById('admin-login-form'),
         adminLogoutBtn: document.getElementById('admin-logout-btn'),
@@ -281,8 +285,365 @@ document.addEventListener('DOMContentLoaded', () => {
         return target.isContentEditable || ['input', 'textarea', 'select'].includes(tagName);
     }
 
+    const COMMAND_TARGET_SELECTOR = [
+        '.feed-tab',
+        '.sub-tab:not(.hidden)',
+        '.notification-tab',
+        '.activity-period-tab',
+        '.hook-view-tab',
+        '.hook-source-tab',
+        '.profile-tab',
+        '.feed-post',
+        '.search-user-card',
+        '.notification-card',
+        '.hook-source-main',
+        '.hook-book-card'
+    ].join(',');
+
+    function isCommandModeOpen() {
+        return Boolean(els.commandModeOverlay && !els.commandModeOverlay.classList.contains('hidden'));
+    }
+
+    function resetCommandModeInput(shouldFocus = true) {
+        if (!els.commandModeInput) return;
+        els.commandModeInput.value = '';
+        if (shouldFocus) els.commandModeInput.focus();
+    }
+
+    function getActiveCommandRoot() {
+        const overlays = [els.detailOverlay, els.profileOverlay, els.settingsOverlay, els.hookBuilderOverlay];
+        return overlays.find(overlay => overlay && !overlay.classList.contains('hidden')) || document;
+    }
+
+    function isCommandTargetVisible(element) {
+        if (!element || element.closest('#command-mode-overlay') || element.closest('.hidden')) return false;
+        const style = window.getComputedStyle(element);
+        if (style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity) === 0) return false;
+        const rect = element.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0;
+    }
+
+    function getCommandTargets() {
+        const root = getActiveCommandRoot();
+        return Array.from(root.querySelectorAll(COMMAND_TARGET_SELECTOR)).filter(isCommandTargetVisible);
+    }
+
+    function getCommandTargetLabel(element) {
+        if (!element) return '선택할 항목이 없습니다.';
+        const text = (element.textContent || '').replace(/\s+/g, ' ').trim();
+        if (element.classList.contains('feed-post')) {
+            const author = element.querySelector('.username')?.textContent?.trim() || '글';
+            const body = element.querySelector('.post-text-below-image')?.textContent?.trim() || '이미지 게시물';
+            return `글 · ${author} · ${makeClientPreview(body, 34)}`;
+        }
+        if (element.classList.contains('hook-source-main')) {
+            return `HOOK 글 · ${makeClientPreview(text, 42)}`;
+        }
+        if (element.classList.contains('notification-card')) {
+            return `알림 · ${makeClientPreview(text, 42)}`;
+        }
+        if (element.classList.contains('search-user-card')) {
+            return `사용자 · ${makeClientPreview(text, 42)}`;
+        }
+        if (element.classList.contains('hook-book-card')) {
+            return `책 · ${makeClientPreview(text, 42)}`;
+        }
+        return `탭 · ${makeClientPreview(text, 42)}`;
+    }
+
+    function updateCommandSelectionStatus() {
+        if (!els.commandSelectionStatus || !els.commandSelectionLabel) return;
+        els.commandSelectionStatus.classList.toggle('hidden', !state.commandSelectionMode);
+        if (!state.commandSelectionMode) return;
+        els.commandSelectionLabel.textContent = getCommandTargetLabel(state.commandSelectedElement);
+    }
+
+    function clearCommandSelection() {
+        state.commandSelectedElement?.classList.remove('command-selected');
+        state.commandSelectedElement?.removeAttribute('aria-current');
+        state.commandSelectedElement = null;
+        updateCommandSelectionStatus();
+    }
+
+    function disableCommandSelection(shouldFocus = true) {
+        state.commandSelectionMode = false;
+        clearCommandSelection();
+        document.body.classList.remove('command-selection-active');
+        els.commandModeOverlay?.classList.remove('selection-on');
+        els.commandSelectionStatus?.classList.add('hidden');
+        if (shouldFocus && isCommandModeOpen()) resetCommandModeInput(true);
+    }
+
+    function selectCommandElement(element, options = {}) {
+        if (!element) return;
+        state.commandSelectedElement?.classList.remove('command-selected');
+        state.commandSelectedElement?.removeAttribute('aria-current');
+        state.commandSelectedElement = element;
+        element.classList.add('command-selected');
+        element.setAttribute('aria-current', 'true');
+        if (options.scroll !== false) {
+            element.scrollIntoView({ block: 'center', inline: 'center', behavior: 'smooth' });
+        }
+        updateCommandSelectionStatus();
+    }
+
+    function selectInitialCommandTarget() {
+        const targets = getCommandTargets();
+        if (!targets.length) {
+            clearCommandSelection();
+            addCommandModeHistory('error', '선택할 항목이 없어요', '현재 화면에서 글이나 탭을 찾지 못했어요.');
+            return false;
+        }
+        const viewportCenter = {
+            x: window.innerWidth / 2,
+            y: window.innerHeight / 2
+        };
+        const best = targets
+            .map(element => {
+                const rect = element.getBoundingClientRect();
+                const x = rect.left + rect.width / 2;
+                const y = rect.top + rect.height / 2;
+                return { element, score: Math.hypot(x - viewportCenter.x, y - viewportCenter.y) };
+            })
+            .sort((a, b) => a.score - b.score)[0]?.element;
+        selectCommandElement(best);
+        return true;
+    }
+
+    function enableCommandSelection() {
+        if (!isCommandModeOpen()) openCommandMode();
+        state.commandSelectionMode = true;
+        document.body.classList.add('command-selection-active');
+        els.commandModeOverlay?.classList.add('selection-on');
+        els.commandModeInput?.blur();
+        if (!state.commandSelectedElement || !isCommandTargetVisible(state.commandSelectedElement)) {
+            selectInitialCommandTarget();
+        } else {
+            selectCommandElement(state.commandSelectedElement, { scroll: false });
+        }
+        addCommandModeHistory('success', '선택 모드 켜짐', 'WASD/방향키 이동 · Enter 열기 · L 좋아요 · B 저장 · C 댓글');
+    }
+
+    function moveCommandSelection(direction) {
+        const targets = getCommandTargets();
+        if (!targets.length) {
+            clearCommandSelection();
+            addCommandModeHistory('error', '이동할 항목이 없어요');
+            return;
+        }
+        const current = state.commandSelectedElement;
+        if (!current || !targets.includes(current)) {
+            selectCommandElement(targets[0]);
+            return;
+        }
+        const currentRect = current.getBoundingClientRect();
+        const currentCenter = {
+            x: currentRect.left + currentRect.width / 2,
+            y: currentRect.top + currentRect.height / 2
+        };
+        const isVertical = direction === 'up' || direction === 'down';
+        const sign = direction === 'down' || direction === 'right' ? 1 : -1;
+        const ranked = targets
+            .filter(element => element !== current)
+            .map(element => {
+                const rect = element.getBoundingClientRect();
+                const center = {
+                    x: rect.left + rect.width / 2,
+                    y: rect.top + rect.height / 2
+                };
+                const primary = isVertical ? center.y - currentCenter.y : center.x - currentCenter.x;
+                const secondary = isVertical ? Math.abs(center.x - currentCenter.x) : Math.abs(center.y - currentCenter.y);
+                return { element, primary: primary * sign, score: Math.abs(primary) * 2 + secondary };
+            })
+            .filter(item => item.primary > 6)
+            .sort((a, b) => a.score - b.score);
+
+        if (ranked[0]) {
+            selectCommandElement(ranked[0].element);
+            return;
+        }
+
+        const index = targets.indexOf(current);
+        const delta = direction === 'up' || direction === 'left' ? -1 : 1;
+        selectCommandElement(targets[(index + delta + targets.length) % targets.length]);
+    }
+
+    function clickCommandTarget(element) {
+        if (!element) return false;
+        if (element.classList.contains('hook-book-card')) {
+            element.querySelector('.hook-load-book-btn')?.click();
+            return true;
+        }
+        if (element.matches('button, a, .feed-post, .notification-card, .search-user-card, .hook-source-main')) {
+            element.click();
+            return true;
+        }
+        const action = element.querySelector('button, a');
+        if (action) {
+            action.click();
+            return true;
+        }
+        return false;
+    }
+
+    function runCommandSelectionAction(action = 'open') {
+        if (!state.commandSelectionMode) enableCommandSelection();
+        const target = state.commandSelectedElement;
+        if (!target) return;
+        const actionMap = {
+            like: ['.like-btn'],
+            save: ['.post-menu-save-btn', '.reply-save-btn'],
+            report: ['.post-menu-report-btn', '.reply-report-btn'],
+            delete: ['.post-menu-delete-btn', '.reply-delete-btn']
+        };
+        if (action === 'comment') {
+            if (target.classList.contains('feed-post') || target.classList.contains('hook-source-main')) {
+                clickCommandTarget(target);
+                [220, 520, 900].forEach(delay => window.setTimeout(() => els.detailReplyInput?.focus(), delay));
+                addCommandModeHistory('success', '댓글 입력으로 이동', getCommandTargetLabel(target));
+                return;
+            }
+            els.detailReplyInput?.focus();
+            addCommandModeHistory('success', '댓글 입력 대기', '현재 글의 댓글 입력창으로 이동했어요.');
+            return;
+        }
+        const selectors = actionMap[action];
+        if (selectors) {
+            const button = selectors.map(selector => target.querySelector(selector)).find(Boolean);
+            if (!button) {
+                addCommandModeHistory('error', '이 항목에서는 실행할 수 없어요', getCommandTargetLabel(target));
+                return;
+            }
+            button.click();
+            addCommandModeHistory('success', `${button.textContent.replace(/\s+/g, ' ').trim()} 실행`, getCommandTargetLabel(target));
+            return;
+        }
+        const didClick = clickCommandTarget(target);
+        addCommandModeHistory(didClick ? 'success' : 'error', didClick ? '선택 항목 열기' : '열 수 없는 항목이에요', getCommandTargetLabel(target));
+    }
+
+    function handleCommandSelectionKeydown(e) {
+        if (!state.commandSelectionMode || isEditableTarget(e.target) || e.metaKey || e.ctrlKey || e.altKey) return false;
+
+        if (e.key === '/') {
+            const now = Date.now();
+            e.preventDefault();
+            if (now - lastCommandSlashAt <= 420) {
+                closeCommandMode();
+                return true;
+            }
+            lastCommandSlashAt = now;
+            return true;
+        }
+
+        const key = e.key.toLowerCase();
+        const moveKeys = {
+            arrowup: 'up',
+            w: 'up',
+            k: 'up',
+            arrowdown: 'down',
+            s: 'down',
+            j: 'down',
+            arrowleft: 'left',
+            a: 'left',
+            arrowright: 'right',
+            d: 'right'
+        };
+
+        if (e.key === 'Tab') {
+            e.preventDefault();
+            const targets = getCommandTargets();
+            if (!targets.length) return true;
+            const currentIndex = targets.indexOf(state.commandSelectedElement);
+            const delta = e.shiftKey ? -1 : 1;
+            selectCommandElement(targets[(currentIndex + delta + targets.length) % targets.length]);
+            return true;
+        }
+
+        if (moveKeys[key]) {
+            e.preventDefault();
+            moveCommandSelection(moveKeys[key]);
+            return true;
+        }
+
+        if (e.shiftKey && key === 's') {
+            e.preventDefault();
+            runCommandSelectionAction('save');
+            return true;
+        }
+
+        const actions = {
+            enter: 'open',
+            o: 'open',
+            l: 'like',
+            ' ': 'like',
+            b: 'save',
+            c: 'comment',
+            i: 'comment',
+            r: 'report',
+            x: 'delete',
+            delete: 'delete',
+            backspace: 'delete'
+        };
+
+        if (actions[key]) {
+            e.preventDefault();
+            runCommandSelectionAction(actions[key]);
+            return true;
+        }
+
+        if (key === 'escape' || key === ':') {
+            e.preventDefault();
+            disableCommandSelection(true);
+            addCommandModeHistory('success', '선택 모드 나가기', '커맨드 모드는 유지됩니다. 다시 sel을 입력하면 선택 모드가 켜져요.');
+            return true;
+        }
+
+        if (key === '?' || key === 'h') {
+            e.preventDefault();
+            showCommandHelp();
+            return true;
+        }
+
+        return false;
+    }
+
+    function showCommandHelp() {
+        const commands = [
+            ['검색', 'sc 검색어 / search 검색어', '검색 탭으로 이동해서 입력한 검색어를 바로 검색합니다.'],
+            ['이동', 'top / bot', '현재 열려 있는 화면의 맨 위 또는 맨 아래로 이동합니다.'],
+            ['선택 모드', 'sel / select', '글과 탭을 키보드로 선택합니다. WASD, 방향키, Tab으로 이동합니다.'],
+            ['선택 액션', 'open, like, save, comment, report, delete', '선택된 글을 열거나 좋아요, 저장, 댓글, 신고, 삭제를 실행합니다.'],
+            ['피드', 'latest / pop / related / feed popular', '최신 피드, 인기 피드, 관련 피드로 전환합니다.'],
+            ['주요 화면', 'home / hook / noti / act / me', '홈, HOOK, 알림, 내 활동, 내 프로필로 이동합니다.'],
+            ['프로필', 'profile 아이디 / pf 아이디', '입력한 사용자 프로필을 엽니다. @는 붙여도 되고 안 붙여도 됩니다.'],
+            ['설정', 'settings / privacy / content', '설정 홈, 개인정보 보호, 콘텐츠 기본설정으로 이동합니다.'],
+            ['작성/신고', 'new / bug', '글쓰기 입력창으로 이동하거나 문제신고 창을 엽니다.'],
+            ['화면 모드', 'theme / dark / light', 'theme은 라이트/다크를 토글하고, dark와 light는 원하는 모드로 바로 고정합니다.'],
+            ['새로고침', 'refresh / reload', '브라우저 전체 새로고침 없이 현재 보고 있는 화면 데이터만 다시 불러옵니다.'],
+            ['글 바로 열기', 'post 번호', '예: post 25처럼 입력하면 해당 번호의 글 상세 화면을 바로 엽니다.'],
+            ['커맨드 관리', 'clear / exit / close / q', 'clear는 커맨드 기록을 지우고, exit/close/q는 커맨드 모드를 종료합니다.']
+        ];
+        commands.slice().reverse().forEach(([title, command, detail]) => {
+            addCommandModeHistory('success', `${title}: ${command}`, detail);
+        });
+    }
+
+    async function refreshCurrentCommandContext() {
+        if (els.detailOverlay && !els.detailOverlay.classList.contains('hidden')) {
+            await refreshCurrentDetailPost();
+            return;
+        }
+        if (!els.feedContent?.classList.contains('hidden')) await loadFeed(state.currentFeedType === 'latest');
+        else if (!els.searchContent?.classList.contains('hidden')) await doSearch();
+        else if (!els.notificationsContent?.classList.contains('hidden')) await loadNotifications();
+        else if (!els.activityContent?.classList.contains('hidden')) await loadActivity();
+        else if (!els.hookContent?.classList.contains('hidden')) await loadHookDashboard();
+    }
+
     function openCommandMode() {
         if (!pages.home?.classList.contains('active') || isEditableTarget()) return;
+        disableCommandSelection(false);
         lastCommandInputSlashAt = 0;
         els.commandModeOverlay?.classList.remove('hidden');
         els.commandModeOverlay?.setAttribute('aria-hidden', 'false');
@@ -295,6 +656,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function closeCommandMode() {
         lastCommandSlashAt = 0;
         lastCommandInputSlashAt = 0;
+        disableCommandSelection(false);
         els.commandModeOverlay?.classList.add('hidden');
         els.commandModeOverlay?.setAttribute('aria-hidden', 'true');
         els.commandModeInput?.blur();
@@ -335,7 +697,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const hint = els.commandModeHistory.querySelector('.command-mode-hint');
         hint?.remove();
         els.commandModeHistory.prepend(entry);
-        while (els.commandModeHistory.children.length > 5) {
+        while (els.commandModeHistory.children.length > 10) {
             els.commandModeHistory.lastElementChild?.remove();
         }
     }
@@ -344,32 +706,236 @@ document.addEventListener('DOMContentLoaded', () => {
         const command = rawCommand.trim();
         if (!command) return;
         const [name, ...rest] = command.split(/\s+/);
+        const commandName = name.toLowerCase();
         const query = rest.join(' ').trim();
 
-        if (name.toLowerCase() === 'sc' && query) {
+        if (['help', 'commands', 'cmd', '?', 'h'].includes(commandName)) {
+            resetCommandModeInput();
+            showCommandHelp();
+            return;
+        }
+
+        if (['sel', 'select'].includes(commandName)) {
+            resetCommandModeInput(false);
+            enableCommandSelection();
+            return;
+        }
+
+        if (['exit', 'close', 'q'].includes(commandName)) {
+            closeCommandMode();
+            return;
+        }
+
+        if (commandName === 'clear') {
+            els.commandModeHistory.innerHTML = '';
+            resetCommandModeInput();
+            addCommandModeHistory('success', '기록을 비웠어요');
+            return;
+        }
+
+        if ((commandName === 'sc' || commandName === 'search') && query) {
             switchMainSection('search');
             saveViewState({ mainSection: 'search' });
             els.searchInput.value = query;
             await doSearch();
-            els.commandModeInput.value = '';
-            els.commandModeInput.focus();
+            resetCommandModeInput();
             addCommandModeHistory('success', `검색 실행: ${query}`, '검색 탭에 결과를 업데이트했어요.');
             return;
         }
 
-        if (name.toLowerCase() === 'top') {
+        if (commandName === 'top') {
             scrollCurrentPage('top');
-            els.commandModeInput.value = '';
-            els.commandModeInput.focus();
+            resetCommandModeInput();
             addCommandModeHistory('success', '맨 위로 이동', '현재 페이지의 가장 위로 이동했어요.');
             return;
         }
 
-        if (name.toLowerCase() === 'bot') {
+        if (commandName === 'bot' || commandName === 'bottom') {
             scrollCurrentPage('bottom');
-            els.commandModeInput.value = '';
-            els.commandModeInput.focus();
+            resetCommandModeInput();
             addCommandModeHistory('success', '맨 아래로 이동', '현재 페이지의 가장 아래로 이동했어요.');
+            return;
+        }
+
+        if (['home', 'latest', 'pop', 'popular', 'related'].includes(commandName)) {
+            switchMainSection('home');
+            if (commandName === 'latest') state.currentFeedType = 'latest';
+            if (commandName === 'pop' || commandName === 'popular') state.currentFeedType = 'popular';
+            if (commandName === 'related') state.currentFeedType = 'related';
+            syncFeedControls();
+            saveViewState({ mainSection: 'home', feedType: state.currentFeedType });
+            await loadFeed(commandName === 'latest' || commandName === 'home');
+            resetCommandModeInput();
+            addCommandModeHistory('success', '홈으로 이동', `${state.currentFeedType} 피드를 열었어요.`);
+            return;
+        }
+
+        if (commandName === 'feed' && query) {
+            const feedName = query.toLowerCase();
+            const nextType = feedName.startsWith('pop') ? 'popular' : feedName.startsWith('rel') ? 'related' : 'latest';
+            switchMainSection('home');
+            state.currentFeedType = nextType;
+            syncFeedControls();
+            saveViewState({ mainSection: 'home', feedType: state.currentFeedType });
+            await loadFeed(nextType === 'latest');
+            resetCommandModeInput();
+            addCommandModeHistory('success', '피드 전환', `${nextType} 피드를 열었어요.`);
+            return;
+        }
+
+        if (['hook', 'book'].includes(commandName)) {
+            switchMainSection('hook');
+            setHookView(query === 'orders' || query === 'order' ? 'orders' : 'books');
+            await loadHookDashboard();
+            resetCommandModeInput();
+            addCommandModeHistory('success', 'HOOK으로 이동', '책과 주문 관리 화면을 열었어요.');
+            return;
+        }
+
+        if (['noti', 'notice', 'alarm', 'notifications'].includes(commandName)) {
+            switchMainSection('notifications');
+            await loadNotifications();
+            resetCommandModeInput();
+            addCommandModeHistory('success', '알림으로 이동');
+            return;
+        }
+
+        if (['act', 'activity'].includes(commandName)) {
+            switchMainSection('activity');
+            await loadActivity();
+            resetCommandModeInput();
+            addCommandModeHistory('success', '내 활동으로 이동');
+            return;
+        }
+
+        if (['me', 'profile', 'pf'].includes(commandName)) {
+            const targetUser = (query || state.currentUserId).replace(/^@/, '');
+            resetCommandModeInput();
+            openProfile(targetUser);
+            addCommandModeHistory('success', '프로필 열기', `@${targetUser}`);
+            return;
+        }
+
+        if (['settings', 'setting', 'set'].includes(commandName)) {
+            const section = query.toLowerCase().startsWith('content') || query.includes('콘텐츠') ? 'content' : query.toLowerCase().startsWith('privacy') || query.includes('개인') ? 'privacy' : '';
+            resetCommandModeInput();
+            await openSettings(section);
+            addCommandModeHistory('success', '설정 열기', section ? section : '설정 홈');
+            return;
+        }
+
+        if (['privacy', 'private'].includes(commandName)) {
+            resetCommandModeInput();
+            await openSettings('privacy');
+            addCommandModeHistory('success', '개인정보 보호 열기');
+            return;
+        }
+
+        if (['content', 'contents'].includes(commandName)) {
+            resetCommandModeInput();
+            await openSettings('content');
+            addCommandModeHistory('success', '콘텐츠 기본설정 열기');
+            return;
+        }
+
+        if (['bug', 'problem'].includes(commandName)) {
+            resetCommandModeInput();
+            els.bugReportOverlay?.classList.remove('hidden');
+            els.moreMenu?.classList.remove('show');
+            window.setTimeout(() => els.bugReportTitleInput?.focus(), 120);
+            addCommandModeHistory('success', '문제신고 열기');
+            return;
+        }
+
+        if (commandName === 'admin') {
+            resetCommandModeInput();
+            closeCommandMode();
+            navigateTo('adminLogin');
+            return;
+        }
+
+        if (['new', 'write', 'compose'].includes(commandName)) {
+            switchMainSection('home');
+            resetCommandModeInput(false);
+            window.setTimeout(() => els.postInput?.focus(), 120);
+            addCommandModeHistory('success', '글쓰기 준비', '입력창으로 이동했어요.');
+            return;
+        }
+
+        if (commandName === 'theme') {
+            const nextTheme = document.body.classList.contains('light-mode') ? 'dark' : 'light';
+            applyTheme(nextTheme);
+            resetCommandModeInput();
+            addCommandModeHistory('success', '모드 전환', nextTheme === 'light' ? '라이트 모드' : '다크 모드');
+            return;
+        }
+
+        if (['dark', 'darkmode'].includes(commandName)) {
+            applyTheme('dark');
+            resetCommandModeInput();
+            addCommandModeHistory('success', '다크 모드 적용');
+            return;
+        }
+
+        if (['light', 'lightmode'].includes(commandName)) {
+            applyTheme('light');
+            resetCommandModeInput();
+            addCommandModeHistory('success', '라이트 모드 적용');
+            return;
+        }
+
+        if (['refresh', 'reload'].includes(commandName)) {
+            await refreshCurrentCommandContext();
+            resetCommandModeInput();
+            addCommandModeHistory('success', '새로고침 완료', '현재 화면 데이터를 다시 불러왔어요.');
+            return;
+        }
+
+        if (commandName === 'post' && query) {
+            const postId = Number(query.replace('#', ''));
+            if (!Number.isFinite(postId)) {
+                addCommandModeHistory('error', '글 번호를 확인해주세요', command);
+                return;
+            }
+            await openPostDetail({ id: postId });
+            resetCommandModeInput();
+            addCommandModeHistory('success', '글 열기', `#${postId}`);
+            return;
+        }
+
+        if (['open', 'o'].includes(commandName)) {
+            runCommandSelectionAction('open');
+            resetCommandModeInput(false);
+            return;
+        }
+
+        if (['like', 'l'].includes(commandName)) {
+            runCommandSelectionAction('like');
+            resetCommandModeInput(false);
+            return;
+        }
+
+        if (['save', 's'].includes(commandName)) {
+            runCommandSelectionAction('save');
+            resetCommandModeInput(false);
+            return;
+        }
+
+        if (['comment', 'c'].includes(commandName)) {
+            runCommandSelectionAction('comment');
+            resetCommandModeInput(false);
+            return;
+        }
+
+        if (['report', 'rp'].includes(commandName)) {
+            runCommandSelectionAction('report');
+            resetCommandModeInput(false);
+            return;
+        }
+
+        if (['delete', 'del'].includes(commandName)) {
+            runCommandSelectionAction('delete');
+            resetCommandModeInput(false);
             return;
         }
 
@@ -1121,6 +1687,9 @@ document.addEventListener('DOMContentLoaded', () => {
     function createPostElement(post) {
         const postEl = document.createElement('div');
         postEl.className = 'feed-post';
+        postEl.dataset.commandTarget = 'post';
+        postEl.dataset.postId = post.id;
+        postEl.tabIndex = 0;
         const metrics = createMetricsText(post);
         const images = renderPostImages(post.images || [], 'feed');
         const author = {
@@ -2386,8 +2955,21 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         els.feedContent?.addEventListener('scroll', handleFeedScroll, { passive: true });
         document.addEventListener('keydown', (e) => {
-            const commandModeOpen = els.commandModeOverlay && !els.commandModeOverlay.classList.contains('hidden');
-            if (e.key !== '/' || commandModeOpen || e.metaKey || e.ctrlKey || e.altKey) return;
+            const commandModeOpen = isCommandModeOpen();
+            if (commandModeOpen && state.commandSelectionMode && handleCommandSelectionKeydown(e)) return;
+            if (commandModeOpen) {
+                if (e.key === '/' && !e.metaKey && !e.ctrlKey && !e.altKey && !isEditableTarget(e.target)) {
+                    const now = Date.now();
+                    e.preventDefault();
+                    if (now - lastCommandSlashAt <= 420) {
+                        closeCommandMode();
+                        return;
+                    }
+                    lastCommandSlashAt = now;
+                }
+                return;
+            }
+            if (e.key !== '/' || e.metaKey || e.ctrlKey || e.altKey) return;
             if (isEditableTarget(e.target)) return;
 
             const now = Date.now();
@@ -2413,6 +2995,10 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             if (e.key === 'Escape') {
                 e.preventDefault();
+                if (state.commandSelectionMode) {
+                    disableCommandSelection(true);
+                    return;
+                }
                 els.commandModeInput.blur();
                 els.commandModeInput.focus();
                 return;
