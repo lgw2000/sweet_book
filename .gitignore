@@ -1,0 +1,24 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# OS-specific files
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+
+# Virtual Environment
+venv/
+env/
+.env
+
+# Project specific ignores
+simple-web/static/uploads/*
+!simple-web/static/uploads/.gitkeep
+simple-web/users.db
+
+# IDEs
+.vscode/
+.idea/

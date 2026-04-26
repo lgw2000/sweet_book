@@ -5,11 +5,48 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="프리미엄 로그인 화면 데모">
     <title>너의두컷</title>
+    <script>
+        (() => {
+            try {
+                const themeKeys = ['theme', 'sweetBookTheme', 'colorTheme', 'appTheme', 'uiTheme', 'preferredTheme'];
+                const storedThemes = themeKeys
+                    .map(key => localStorage.getItem(key))
+                    .filter(Boolean)
+                    .map(theme => String(theme).toLowerCase());
+                const light = storedThemes.some(theme => theme.includes('light'));
+                document.documentElement.classList.toggle('light-mode', light);
+                document.documentElement.dataset.theme = light ? 'light' : 'dark';
+            } catch (error) {
+                document.documentElement.dataset.theme = 'dark';
+            }
+        })();
+    </script>
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
 </head>
 <body>
+    <script>
+        (() => {
+            const themeKeys = ['theme', 'sweetBookTheme', 'colorTheme', 'appTheme', 'uiTheme', 'preferredTheme'];
+            const storedThemes = themeKeys
+                .map(key => localStorage.getItem(key))
+                .filter(Boolean)
+                .map(theme => String(theme).toLowerCase());
+            const light = storedThemes.some(theme => theme.includes('light'));
+            if (light) {
+                document.documentElement.classList.add('light-mode');
+                document.body.classList.add('light-mode');
+                document.documentElement.dataset.theme = 'light';
+                document.body.dataset.theme = 'light';
+            } else {
+                document.body.classList.remove('light-mode');
+                document.documentElement.classList.remove('light-mode');
+                document.documentElement.dataset.theme = 'dark';
+                document.body.dataset.theme = 'dark';
+            }
+        })();
+    </script>
     <!-- Dynamic background elements -->
     <div class="background-shapes">
         <div class="shape shape-1"></div>
@@ -20,7 +57,7 @@
     <!-- Home Page (Instagram Style Dashboard) -->
     <div id="home-page" class="page dashboard">
         <nav class="sidebar">
-            <div class="brand">
+            <div class="brand" id="brand-logo" style="cursor:pointer;">
                 <i class="ph ph-instagram-logo"></i>
                 <span class="brand-text">너<span class="collapsible">의</span>두<span class="collapsible">컷</span></span>
             </div>
@@ -35,20 +72,18 @@
                     <i class="ph ph-magnifying-glass"></i>
                     <span>검색</span>
                 </a>
-                <a href="#" class="nav-item">
-                    <i class="ph ph-compass"></i>
-                    <span>탐색</span>
+                <a href="#" class="nav-item" id="nav-hook-btn">
+                    <svg class="hook-icon" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M16 3v11.2a6 6 0 1 1-6-6" />
+                    </svg>
+                    <span>HOOK</span>
                 </a>
-                <a href="#" class="nav-item">
+                <a href="#" class="nav-item" id="nav-notif-btn">
                     <div class="icon-wrapper">
                         <i class="ph ph-heart"></i>
-                        <span class="badge dot-badge"></span>
+                        <span class="badge dot-badge" id="notif-badge"></span>
                     </div>
                     <span>알림</span>
-                </a>
-                <a href="#" class="nav-item">
-                    <img src="https://ui-avatars.com/api/?name=User&background=333&color=fff&rounded=true" alt="프로필" class="profile-pic">
-                    <span>프로필</span>
                 </a>
             </div>
 
@@ -61,11 +96,19 @@
                     
                     <!-- More Popup Menu -->
                     <div class="more-menu" id="more-menu">
-                        <a href="#" class="menu-item"><i class="ph ph-gear"></i>설정</a>
-                        <a href="#" class="menu-item"><i class="ph ph-chart-line-up"></i>내 활동</a>
-                        <a href="#" class="menu-item"><i class="ph ph-bookmark-simple"></i>저장됨</a>
-                        <a href="#" class="menu-item" id="theme-toggle-btn"><i class="ph ph-moon" id="theme-icon"></i>모드 전환</a>
-                        <a href="#" class="menu-item"><i class="ph ph-warning-circle"></i>문제 신고</a>
+                        <a href="#" class="menu-item menu-profile-item" id="nav-profile-btn">
+                            <div class="profile-pic avatar-fallback" id="sidebar-profile-avatar">US</div>
+                            <div class="menu-profile-copy">
+                                <strong>프로필</strong>
+                                <span>내 프로필 보기</span>
+                            </div>
+                        </a>
+                        <div class="menu-divider"></div>
+                        <a href="#" class="menu-item" id="sidebar-settings-btn"><i class="ph ph-gear"></i>설정</a>
+                        <a href="#" class="menu-item" id="sidebar-activity-btn"><i class="ph ph-chart-line-up"></i>내 활동</a>
+                        <a href="#" class="menu-item" id="sidebar-saved-btn"><i class="ph ph-bookmark-simple"></i>저장됨</a>
+                        <a href="#" class="menu-item" id="theme-toggle-btn" data-theme-toggle><i class="ph ph-moon" id="theme-icon"></i>모드 전환</a>
+                        <a href="#" class="menu-item" id="sidebar-bug-report-btn"><i class="ph ph-warning-circle"></i>문제 신고</a>
                         <div class="menu-divider"></div>
                         <a href="#" class="menu-item" id="logout-btn">로그아웃</a>
                     </div>
@@ -74,41 +117,48 @@
         </nav>
         
         <main class="feed-content">
-            <!-- Feed Tabs -->
-            <div class="feed-tabs">
-                <button class="feed-tab active" data-type="latest">최신 피드</button>
-                <button class="feed-tab" data-type="popular">인기 피드</button>
-                <button class="feed-tab" data-type="related">관련 피드</button>
-            </div>
-            
-            <!-- Popular Sub-tabs -->
-            <div id="popular-subtabs" class="sub-tabs hidden">
-                <button class="sub-tab active" data-time="alltime">All time</button>
-                <button class="sub-tab" data-time="year">Year</button>
-                <button class="sub-tab" data-time="month">Month</button>
-                <button class="sub-tab" data-time="week">Week</button>
-                <button class="sub-tab" data-time="day">Day</button>
+            <!-- Feed Header (Sticky) -->
+            <div class="feed-header">
+                <!-- Feed Tabs -->
+                <div class="feed-tabs">
+                    <button class="feed-tab active" data-type="latest">최신 피드</button>
+                    <button class="feed-tab" data-type="popular">인기 피드</button>
+                    <button class="feed-tab" data-type="related">관련 피드</button>
+                </div>
+                
+                <!-- Popular Sub-tabs -->
+                <div id="popular-subtabs" class="sub-tabs hidden">
+                    <button class="sub-tab active" data-time="alltime">All time</button>
+                    <button class="sub-tab" data-time="year">Year</button>
+                    <button class="sub-tab" data-time="month">Month</button>
+                    <button class="sub-tab" data-time="week">Week</button>
+                    <button class="sub-tab" data-time="day">Day</button>
+                </div>
             </div>
 
-            <div class="feed-placeholder">
-                <h2>홈 피드</h2>
-                <p>팔로우하는 사람들의 최근 게시물이 여기에 표시됩니다.</p>
-            </div>
 
             <!-- Feed Stream -->
             <div id="feed-stream" class="feed-stream">
                 <!-- 새 게시물이 추가되는 곳 -->
             </div>
 
+            <!-- Drag & Drop Zone -->
+            <div id="drop-zone" class="drop-zone hidden">
+                <i class="ph ph-image" style="font-size:48px;"></i>
+                <p>이미지를 여기에 놓으세요 (최대 2장)</p>
+            </div>
+
             <!-- Post Creation Area -->
-            <div id="image-preview-container" class="image-preview-container hidden"></div>
-            <div class="post-create-container rounded-chat">
-                <input type="file" id="image-upload-input" accept="image/*" multiple style="display: none;">
-                <button id="add-photo-btn"><i class="ph ph-plus"></i></button>
-                <div class="post-input-wrapper">
-                    <input type="text" id="new-post-input" placeholder="메시지 입력...">
+            <input type="file" id="image-upload-input" accept="image/*" multiple style="display: none;">
+            <div class="post-create-wrapper">
+                <div id="image-preview-bar" class="image-preview-bar hidden"></div>
+                <div class="post-create-container rounded-chat">
+                    <button id="add-photo-btn"><i class="ph ph-plus"></i></button>
+                    <div class="post-input-wrapper">
+                        <input type="text" id="new-post-input" placeholder="메시지 입력...">
+                    </div>
+                    <button id="post-submit-btn" class="send-btn"><i class="ph-bold ph-arrow-up"></i></button>
                 </div>
-                <button id="post-submit-btn" class="send-btn"><i class="ph-bold ph-arrow-up"></i></button>
             </div>
         </main>
         
@@ -123,11 +173,425 @@
                 <!-- Search results will appear here -->
             </div>
         </main>
+
+        <main class="notifications-content hidden">
+            <div class="notifications-header">
+                <div>
+                    <h2>알림</h2>
+                    <p>멘션, 좋아요, 댓글을 한 번에 확인하세요.</p>
+                </div>
+                <button type="button" id="notifications-read-all-btn" class="notification-read-all-btn">전체 확인</button>
+            </div>
+            <div class="notification-tabs">
+                <button class="notification-tab active" data-notification-type="all">전체</button>
+                <button class="notification-tab" data-notification-type="mentions">멘션</button>
+                <button class="notification-tab" data-notification-type="likes">좋아요</button>
+                <button class="notification-tab" data-notification-type="comments">댓글</button>
+            </div>
+            <div id="notifications-results" class="notifications-results"></div>
+        </main>
+
+        <main class="activity-content hidden">
+            <div class="activity-header">
+                <div>
+                    <span class="hook-eyebrow">Activity</span>
+                    <h2>내 활동</h2>
+                    <p>좋아요, 저장, 댓글, 멘션과 내 게시물이 받은 반응을 한눈에 확인하세요.</p>
+                </div>
+                <button type="button" id="activity-refresh-btn" class="notification-read-all-btn">새로고침</button>
+            </div>
+            <div class="activity-toolbar">
+                <div class="activity-period-tabs">
+                    <button type="button" class="activity-period-tab" data-activity-period="day">하루</button>
+                    <button type="button" class="activity-period-tab active" data-activity-period="week">1주일</button>
+                    <button type="button" class="activity-period-tab" data-activity-period="month">한달</button>
+                    <button type="button" class="activity-period-tab" data-activity-period="year">1년</button>
+                </div>
+                <button type="button" id="activity-back-btn" class="activity-back-btn hidden">상위로</button>
+            </div>
+            <div id="activity-drill-label" class="activity-drill-label"></div>
+            <div id="activity-results" class="activity-grid"></div>
+        </main>
+
+        <main class="hook-content hidden">
+            <div class="hook-header">
+                <div>
+                    <span class="hook-eyebrow">HOOK Studio</span>
+                    <h2>내 기록으로 책 만들기</h2>
+                    <p>좋아요, 저장, 내 인기글, 직접 고른 글을 묶어 책 상태와 주문 흐름을 관리합니다.</p>
+                </div>
+                <button type="button" id="hook-refresh-btn" class="notification-read-all-btn">새로고침</button>
+            </div>
+
+            <div class="hook-view-tabs">
+                <button type="button" class="hook-view-tab active" data-hook-view="books">책</button>
+                <button type="button" class="hook-view-tab" data-hook-view="orders">주문 관리</button>
+            </div>
+
+            <div class="hook-grid">
+                <section class="hook-panel" data-hook-panel="books">
+                    <div class="hook-panel-head">
+                        <div>
+                            <h3>저장된 책</h3>
+                            <p>각 책의 조회와 편집 상태를 관리합니다.</p>
+                        </div>
+                    </div>
+                    <div id="hook-books-list" class="hook-card-list"></div>
+                    <button type="button" id="hook-open-builder-btn" class="hook-create-book-btn">
+                        <i class="ph ph-plus"></i>
+                        책 만들기
+                    </button>
+                </section>
+
+                <section class="hook-panel hook-orders-panel hidden" data-hook-panel="orders">
+                    <div class="hook-panel-head">
+                        <div>
+                            <h3>주문 관리</h3>
+                            <p>주문 기록과 진행 상태를 확인합니다.</p>
+                        </div>
+                    </div>
+                    <div id="hook-orders-list" class="hook-card-list"></div>
+                </section>
+            </div>
+
+            <div id="hook-builder-overlay" class="hook-builder-overlay hidden">
+                <section class="hook-panel hook-builder-panel">
+                    <div class="hook-panel-head">
+                        <div>
+                            <h3>책 구성</h3>
+                            <p>소스를 고르고 책에 담을 글을 선택하세요.</p>
+                        </div>
+                        <button type="button" id="hook-builder-close-btn" class="hook-builder-close-btn" aria-label="닫기">
+                            <i class="ph ph-x"></i>
+                        </button>
+                    </div>
+                    <div class="hook-source-tabs">
+                        <button class="hook-source-tab" data-hook-source="all">전체 검색</button>
+                        <button class="hook-source-tab active" data-hook-source="selected">선택한 글</button>
+                        <button class="hook-source-tab" data-hook-source="liked">좋아요</button>
+                        <button class="hook-source-tab" data-hook-source="saved">저장</button>
+                        <button class="hook-source-tab" data-hook-source="top_liked">좋아요 많은 내 글</button>
+                        <button class="hook-source-tab" data-hook-source="top_viewed">조회수 많은 내 글</button>
+                    </div>
+                    <div class="hook-search-box">
+                        <div class="search-bar-container hook-search-bar">
+                            <i class="ph ph-magnifying-glass"></i>
+                            <input type="text" id="hook-post-search-input" placeholder="책에 담을 글 검색">
+                            <button type="button" id="hook-post-search-btn" class="text-btn">검색</button>
+                        </div>
+                        <div id="hook-post-search-results" class="hook-search-results"></div>
+                    </div>
+                    <div id="hook-source-list" class="hook-source-list"></div>
+                    <div class="hook-book-form">
+                        <input type="text" id="hook-book-title-input" placeholder="책 제목">
+                        <button type="button" id="hook-save-book-btn" class="btn btn-primary">책 저장</button>
+                    </div>
+                </section>
+            </div>
+        </main>
+
+        <!-- Post Detail Overlay -->
+        <div id="post-detail-overlay" class="post-detail-overlay hidden">
+            <div class="post-detail-panel">
+                <div class="detail-header">
+                    <button id="detail-back-btn"><i class="ph ph-arrow-left"></i> 뒤로</button>
+                </div>
+                <div id="detail-post-content" class="detail-post-content"></div>
+                <div id="detail-replies" class="detail-replies"></div>
+                <div class="detail-reply-form">
+                    <input type="text" id="detail-reply-input" placeholder="답글 달기...">
+                    <button id="detail-reply-submit" class="reply-submit-btn">게시</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Profile Overlay -->
+        <div id="profile-overlay" class="post-detail-overlay hidden">
+            <div class="post-detail-panel" style="max-width:650px;">
+                <div class="detail-header">
+                    <button id="profile-back-btn"><i class="ph ph-arrow-left"></i> 뒤로</button>
+                </div>
+                <div class="profile-info" id="profile-info"></div>
+                <div class="profile-tabs">
+                    <button class="profile-tab active" data-tab="posts">작성글</button>
+                    <button class="profile-tab" data-tab="liked">좋아요</button>
+                    <button class="profile-tab" id="profile-saves-tab" data-tab="saves">저장됨</button>
+                    <button class="profile-tab" data-tab="images">이미지</button>
+                </div>
+                <div id="profile-content" class="detail-replies" style="flex:1;"></div>
+            </div>
+        </div>
+
+        <div id="profile-edit-overlay" class="post-detail-overlay hidden">
+            <div class="post-detail-panel settings-panel">
+                <div class="detail-header">
+                    <button id="profile-edit-back-btn"><i class="ph ph-arrow-left"></i> 뒤로</button>
+                </div>
+                <div class="settings-body">
+                    <h3 class="settings-title">프로필 수정</h3>
+                    <form id="profile-edit-form" class="settings-form">
+                        <div class="profile-edit-avatar-row">
+                            <div id="profile-edit-avatar-preview" class="profile-avatar avatar-fallback large">US</div>
+                            <div class="settings-field profile-upload-field">
+                                <label for="profile-image-input">프로필 사진</label>
+                                <div class="profile-upload-card">
+                                    <input type="file" id="profile-image-input" accept="image/*">
+                                    <label for="profile-image-input" class="profile-upload-button">사진 업로드</label>
+                                    <div class="profile-upload-copy">
+                                        <strong id="profile-image-file-name">선택된 파일 없음</strong>
+                                        <span>PNG, JPG, WEBP 이미지를 올릴 수 있어요.</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="settings-field">
+                            <label for="profile-display-name-input">이름</label>
+                            <input type="text" id="profile-display-name-input" placeholder="표시할 이름">
+                        </div>
+                        <div class="settings-field">
+                            <label for="profile-bio-input">소개</label>
+                            <textarea id="profile-bio-input" rows="4" placeholder="소개를 작성하세요"></textarea>
+                        </div>
+                        <div class="settings-field">
+                            <label for="profile-interests-input">관심사</label>
+                            <input type="text" id="profile-interests-input" placeholder="쉼표로 구분해 입력">
+                        </div>
+                        <div class="settings-shortcut-card">
+                            <div>
+                                <strong>프로필 공개범위</strong>
+                                <p>개인정보 보호 설정으로 이동해 공개 범위를 조정하세요.</p>
+                            </div>
+                            <button type="button" id="go-privacy-settings-btn" class="text-btn">설정으로 이동</button>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-full">저장</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div id="settings-overlay" class="post-detail-overlay hidden">
+            <div class="post-detail-panel settings-panel">
+                <div class="settings-shell">
+                    <div class="settings-view settings-view-active" id="settings-home-view">
+                        <div class="detail-header">
+                            <button id="settings-back-btn"><i class="ph ph-arrow-left"></i> 뒤로</button>
+                        </div>
+                        <div class="settings-body">
+                            <h3 class="settings-title">설정</h3>
+                            <div class="settings-nav-list">
+                                <button type="button" class="settings-nav-card" id="open-privacy-settings-btn">
+                                    <div>
+                                        <strong>개인정보 보호</strong>
+                                        <p>공개 범위, 멘션, 차단, 제한 프로필을 관리합니다.</p>
+                                    </div>
+                                    <i class="ph ph-caret-right"></i>
+                                </button>
+                                <button type="button" class="settings-nav-card" id="open-content-settings-btn">
+                                    <div>
+                                        <strong>콘텐츠 기본설정</strong>
+                                        <p>업데이트 안보기, 맞춤 필터, 숨김 옵션을 설정합니다.</p>
+                                    </div>
+                                    <i class="ph ph-caret-right"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="settings-view" id="settings-privacy-view">
+                        <div class="detail-header">
+                            <button class="settings-detail-back-btn" data-target-view="home"><i class="ph ph-arrow-left"></i> 개인정보 보호</button>
+                        </div>
+                        <div class="settings-body">
+                            <h3 class="settings-title">개인정보 보호</h3>
+
+                            <div class="settings-row">
+                                <div>
+                                    <strong>공개 프로필</strong>
+                                    <p>승인된 팔로워만 게시물과 이미지를 볼 수 있습니다.</p>
+                                </div>
+                                <label class="switch">
+                                    <input type="checkbox" id="setting-private-profile">
+                                    <span class="switch-slider"></span>
+                                </label>
+                            </div>
+
+                            <button type="button" class="settings-item-button">
+                                <div>
+                                    <strong>멘션 및 언급 허용 대상</strong>
+                                    <p>누가 회원님을 @언급할 수 있는지 선택하세요.</p>
+                                </div>
+                                <select id="setting-mention-permission">
+                                    <option value="everyone">모든 사람</option>
+                                    <option value="following">내가 팔로우하는 프로필</option>
+                                    <option value="none">언급 허용 안 함</option>
+                                </select>
+                            </button>
+
+                            <button type="button" class="settings-item-button">
+                                <div>
+                                    <strong>태그 허용 대상</strong>
+                                    <p>사진에서 회원님을 태그할 수 있는 사람을 선택하세요.</p>
+                                </div>
+                                <select id="setting-tag-permission">
+                                    <option value="everyone">모든 사람</option>
+                                    <option value="following">내가 팔로우하는 프로필</option>
+                                    <option value="none">허용 안 함</option>
+                                </select>
+                            </button>
+
+                            <button type="button" class="settings-item-button">
+                                <div>
+                                    <strong>내 활동 상태를 볼 수 있는 사람</strong>
+                                    <p>온라인 상태를 볼 수 있는 범위를 선택하세요.</p>
+                                </div>
+                                <select id="setting-activity-visibility">
+                                    <option value="everyone">모든 사람</option>
+                                    <option value="followers">팔로워</option>
+                                    <option value="mutuals">맞팔로우 중인 사람</option>
+                                    <option value="private">비공개</option>
+                                </select>
+                            </button>
+
+                            <button type="button" class="settings-list-card settings-manage-trigger" data-manage-type="restricted">
+                                <div>
+                                    <strong>제한된 프로필</strong>
+                                    <p>상대방을 차단하거나 팔로우 취소하지 않고 교류를 제한할 수 있습니다.</p>
+                                    <div id="restricted-profiles-list" class="settings-profile-list empty-state">제한한 사람이 없습니다.</div>
+                                </div>
+                                <i class="ph ph-caret-right"></i>
+                            </button>
+
+                            <button type="button" class="settings-list-card settings-manage-trigger" data-manage-type="blocked">
+                                <div>
+                                    <strong>차단된 프로필</strong>
+                                    <p>차단한 프로필을 관리하고 검색해 추가할 수 있습니다.</p>
+                                    <div id="blocked-profiles-list" class="settings-profile-list empty-state">아무도 차단하지 않았습니다.</div>
+                                </div>
+                                <i class="ph ph-caret-right"></i>
+                            </button>
+
+                            <button id="save-settings-btn" class="btn btn-primary btn-full">설정 저장</button>
+                        </div>
+                    </div>
+
+                    <div class="settings-view" id="settings-content-view">
+                        <div class="detail-header">
+                            <button class="settings-detail-back-btn" data-target-view="home"><i class="ph ph-arrow-left"></i> 콘텐츠 기본설정</button>
+                        </div>
+                        <div class="settings-body">
+                            <h3 class="settings-title">콘텐츠 기본설정</h3>
+
+                            <button type="button" class="settings-list-card settings-manage-trigger" data-manage-type="muted">
+                                <div>
+                                    <strong>업데이트 안보기가 설정된 프로필</strong>
+                                    <p>업데이트를 보지 않도록 설정된 프로필입니다.</p>
+                                    <div id="muted-profiles-list" class="settings-profile-list empty-state">업데이트를 보지 않도록 설정됨</div>
+                                </div>
+                                <i class="ph ph-caret-right"></i>
+                            </button>
+
+                            <div class="settings-row">
+                                <div>
+                                    <strong>답글에서 일반적인 불쾌한 단어 숨기기</strong>
+                                    <p>일반적으로 불쾌한 단어가 포함된 답글을 숨깁니다.</p>
+                                </div>
+                                <label class="switch">
+                                    <input type="checkbox" id="setting-hide-offensive">
+                                    <span class="switch-slider"></span>
+                                </label>
+                            </div>
+
+                            <div class="settings-field">
+                                <label for="custom-filter-input">맞춤 필터</label>
+                                <div class="inline-field">
+                                    <input type="text" id="custom-filter-input" placeholder="숨길 단어 입력">
+                                    <button type="button" id="add-custom-filter-btn" class="text-btn">+ 새 필터</button>
+                                </div>
+                                <div id="custom-filters-list" class="tag-list"></div>
+                            </div>
+
+                            <div class="settings-row">
+                                <div>
+                                    <strong>좋아요수 및 공유수 숨기기</strong>
+                                    <p>다른 프로필 게시물의 좋아요 수와 조회수 등을 숨깁니다.</p>
+                                </div>
+                                <label class="switch">
+                                    <input type="checkbox" id="setting-hide-like-counts">
+                                    <span class="switch-slider"></span>
+                                </label>
+                            </div>
+
+                            <button id="save-content-settings-btn" class="btn btn-primary btn-full">설정 저장</button>
+                        </div>
+                    </div>
+
+                    <div id="settings-manager-overlay" class="settings-manager-overlay hidden">
+                        <div class="settings-manager-sheet">
+                            <div class="detail-header">
+                                <button id="settings-manager-back-btn"><i class="ph ph-arrow-left"></i> 뒤로</button>
+                            </div>
+                            <div class="settings-body">
+                                <h3 class="settings-title" id="settings-manager-title">프로필 관리</h3>
+                                <p class="settings-manager-desc" id="settings-manager-desc"></p>
+                                <div class="search-bar-container settings-search-bar">
+                                    <i class="ph ph-magnifying-glass"></i>
+                                    <input type="text" id="settings-user-search-input" placeholder="사용자 검색">
+                                    <button id="settings-user-search-btn" class="text-btn">검색</button>
+                                </div>
+                                <div id="settings-user-search-results" class="settings-search-results empty-state">검색 결과가 없습니다.</div>
+                                <div class="settings-list-divider"></div>
+                                <div id="settings-manager-current-list" class="settings-profile-list empty-state">목록이 비어 있습니다.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="bug-report-overlay" class="post-detail-overlay hidden">
+            <div class="post-detail-panel settings-panel">
+                <div class="detail-header">
+                    <button id="bug-report-back-btn"><i class="ph ph-arrow-left"></i> 뒤로</button>
+                </div>
+                <div class="settings-body">
+                    <h3 class="settings-title">버그 신고</h3>
+                    <form id="bug-report-form" class="settings-form">
+                        <div class="settings-field">
+                            <label for="bug-report-title-input">제목</label>
+                            <input type="text" id="bug-report-title-input" placeholder="문제를 간단히 적어주세요" required>
+                        </div>
+                        <div class="settings-field">
+                            <label for="bug-report-content-input">내용</label>
+                            <textarea id="bug-report-content-input" rows="5" placeholder="무슨 일이 있었는지 자세히 알려주세요"></textarea>
+                        </div>
+                        <div class="settings-field">
+                            <label for="bug-report-image-input">사진 첨부</label>
+                            <div class="bug-upload-card">
+                                <input type="file" id="bug-report-image-input" accept="image/*" multiple>
+                                <label for="bug-report-image-input" class="bug-upload-button">
+                                    <i class="ph ph-image-square"></i>
+                                    사진 선택
+                                </label>
+                                <div class="bug-upload-copy">
+                                    <strong id="bug-report-file-name">선택된 파일 없음</strong>
+                                    <span>스크린샷은 최대 3장까지 함께 보낼 수 있어요.</span>
+                                </div>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-full">신고 보내기</button>
+                    </form>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Login Page -->
     <div id="login-page" class="page">
         <div class="glass-card">
+            <button type="button" class="auth-theme-toggle" data-theme-toggle aria-label="모드 전환">
+                <i class="ph ph-moon" data-theme-toggle-icon></i>
+                <span data-theme-toggle-label>모드 전환</span>
+            </button>
             <h2>로그인</h2>
             <form id="login-form">
                 <div class="input-group">
@@ -143,6 +607,109 @@
             <div class="card-footer">
                 <button id="go-find-btn" class="text-btn">아이디/비번 찾기</button>
                 <button id="go-signup-btn" class="text-btn">회원가입</button>
+                <button id="go-admin-login-btn" class="text-btn">관리자 로그인</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="admin-login-page" class="page">
+        <div class="glass-card admin-login-card">
+            <button type="button" class="auth-theme-toggle" data-theme-toggle aria-label="모드 전환">
+                <i class="ph ph-moon" data-theme-toggle-icon></i>
+                <span data-theme-toggle-label>모드 전환</span>
+            </button>
+            <h2>관리자 로그인</h2>
+            <p class="desc">관리자 계정은 회원가입할 수 없고, 서버에 등록된 계정으로만 접근할 수 있습니다.</p>
+            <form id="admin-login-form">
+                <div class="input-group">
+                    <label for="admin-id">관리자 아이디</label>
+                    <input type="text" id="admin-id" placeholder="관리자 아이디" required>
+                </div>
+                <div class="input-group">
+                    <label for="admin-pw">비밀번호</label>
+                    <input type="password" id="admin-pw" placeholder="비밀번호" required>
+                </div>
+                <button type="submit" class="btn btn-primary btn-full">관리자 로그인</button>
+            </form>
+            <div class="card-footer center">
+                <button id="back-login-from-admin" class="text-btn">일반 로그인으로 돌아가기</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="admin-page" class="page admin-page">
+        <main class="admin-shell">
+            <header class="admin-header">
+                <div>
+                    <span class="hook-eyebrow">Admin Console</span>
+                    <h2>관리자 페이지</h2>
+                    <p>게시글과 HOOK 주문 정보를 검색하고 관리합니다.</p>
+                </div>
+                <button type="button" id="admin-logout-btn" class="notification-read-all-btn">관리자 로그아웃</button>
+            </header>
+            <div class="hook-view-tabs admin-tabs">
+                <button type="button" class="hook-view-tab active" data-admin-view="posts">글 관리</button>
+                <button type="button" class="hook-view-tab" data-admin-view="orders">주문 관리</button>
+                <button type="button" class="hook-view-tab" data-admin-view="reports">글/댓글 신고</button>
+                <button type="button" class="hook-view-tab" data-admin-view="bugs">버그 신고</button>
+            </div>
+            <section class="admin-panel" data-admin-panel="posts">
+                <div class="search-bar-container admin-search-bar">
+                    <i class="ph ph-magnifying-glass"></i>
+                    <input type="text" id="admin-post-search-input" placeholder="글 내용 또는 글쓴이 검색">
+                    <button type="button" id="admin-post-search-btn" class="text-btn">검색</button>
+                </div>
+                <div id="admin-posts-list" class="admin-list"></div>
+            </section>
+            <section class="admin-panel hidden" data-admin-panel="orders">
+                <div class="search-bar-container admin-search-bar">
+                    <i class="ph ph-magnifying-glass"></i>
+                    <input type="text" id="admin-order-search-input" placeholder="주문자, 상태, 책 제목 검색">
+                    <button type="button" id="admin-order-search-btn" class="text-btn">검색</button>
+                </div>
+                <div id="admin-orders-list" class="admin-list"></div>
+            </section>
+            <section class="admin-panel hidden" data-admin-panel="reports">
+                <div id="admin-reports-list" class="admin-list"></div>
+            </section>
+            <section class="admin-panel hidden" data-admin-panel="bugs">
+                <div id="admin-bug-reports-list" class="admin-list"></div>
+            </section>
+        </main>
+        <div id="admin-post-detail-overlay" class="admin-detail-overlay hidden">
+            <article class="admin-detail-panel">
+                <div class="admin-detail-header">
+                    <div>
+                        <span class="hook-eyebrow">Post Detail</span>
+                        <h3 id="admin-detail-title">게시글 상세</h3>
+                    </div>
+                    <button type="button" id="admin-detail-close-btn" class="hook-builder-close-btn" aria-label="닫기">
+                        <i class="ph ph-x"></i>
+                    </button>
+                </div>
+                <div id="admin-detail-body" class="admin-detail-body"></div>
+            </article>
+        </div>
+    </div>
+
+    <div id="command-mode-overlay" class="command-mode-overlay hidden" aria-hidden="true">
+        <div class="command-mode-panel">
+            <div class="command-mode-main">
+                <div class="command-mode-badge">//</div>
+                <div class="command-mode-copy">
+                    <strong>커맨드 모드</strong>
+                    <span>실행 후에도 유지 · 다시 // 입력 종료</span>
+                </div>
+                <input type="text" id="command-mode-input" placeholder="예: sc 검색어">
+                <button type="button" id="command-mode-close-btn" aria-label="커맨드 모드 닫기">
+                    <i class="ph ph-x"></i>
+                </button>
+            </div>
+            <div id="command-mode-history" class="command-mode-history">
+                <div class="command-mode-hint">
+                    <strong>연속 실행 대기중</strong>
+                    <span><code>sc 검색어</code>, <code>top</code>, <code>bot</code>을 계속 입력할 수 있어요.</span>
+                </div>
             </div>
         </div>
     </div>
@@ -150,6 +717,10 @@
     <!-- Find ID/PW Page -->
     <div id="find-page" class="page">
         <div class="glass-card">
+            <button type="button" class="auth-theme-toggle" data-theme-toggle aria-label="모드 전환">
+                <i class="ph ph-moon" data-theme-toggle-icon></i>
+                <span data-theme-toggle-label>모드 전환</span>
+            </button>
             <h2>아이디/비밀번호 찾기</h2>
             <p class="desc">가입 시 등록한 이메일을 입력해주세요.</p>
             <form id="find-form">
@@ -168,6 +739,10 @@
     <!-- Sign Up Page -->
     <div id="signup-page" class="page">
         <div class="glass-card">
+            <button type="button" class="auth-theme-toggle" data-theme-toggle aria-label="모드 전환">
+                <i class="ph ph-moon" data-theme-toggle-icon></i>
+                <span data-theme-toggle-label>모드 전환</span>
+            </button>
             <h2>회원가입</h2>
             <form id="signup-form">
                 <div class="input-group">
