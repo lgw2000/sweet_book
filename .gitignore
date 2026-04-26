@@ -17,6 +17,7 @@ env/
 # Project specific ignores
 the-algorithm
 the-algorithm-ml
+simple-web/data/
 simple-web/static/uploads/*
 !simple-web/static/uploads/.gitkeep
 simple-web/users.db
