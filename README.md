@@ -41,7 +41,7 @@ cp .env.example .env
 docker-compose up --build
 
 # 접속
-# http://localhost:8000
+# http://localhost:3000
 ```
 
 Docker Compose v2 환경에서는 아래 명령도 사용할 수 있습니다.
@@ -58,20 +58,20 @@ docker-compose down
 
 ### 포트 변경
 
-심사자 환경에서 `8000` 포트가 충돌하면 [docker-compose.yml](./docker-compose.yml)의 `ports` 왼쪽 값을 바꿉니다.
+심사자 환경에서 `3000` 포트가 충돌하면 [docker-compose.yml](./docker-compose.yml)의 `ports` 왼쪽 값을 바꿉니다.
 
 기본값:
 
 ```yaml
 ports:
-  - "8000:8000"
+  - "3000:8000"
 ```
 
-예를 들어 로컬 `3000` 포트로 열고 싶다면:
+예를 들어 로컬 `8080` 포트로 열고 싶다면:
 
 ```yaml
 ports:
-  - "3000:8000"
+  - "8080:8000"
 ```
 
 다시 실행:
@@ -83,10 +83,10 @@ docker-compose up --build
 접속:
 
 ```text
-http://localhost:3000
+http://localhost:8080
 ```
 
-오른쪽 `8000`은 컨테이너 내부 포트이므로 보통 그대로 둡니다.
+오른쪽 `8000`은 컨테이너 내부 포트이므로 보통 그대로 둡니다. 실행 로그에 `http://0.0.0.0:8000`이 보이는 것은 정상이고, 브라우저에서는 왼쪽 포트인 `http://localhost:3000`으로 접속합니다.
 
 ### 환경변수
 
@@ -187,7 +187,7 @@ GET /api/admin/orders/{order_id}/partner-export?token=<admin-token>
 직접 API로 확인하려면 먼저 관리자 로그인을 호출합니다.
 
 ```bash
-curl -X POST http://localhost:8000/api/admin/login \
+curl -X POST http://localhost:3000/api/admin/login \
   -H "Content-Type: application/json" \
   -d '{"admin_id":"admin","password":"admin1234"}'
 ```
@@ -222,7 +222,7 @@ JSON에는 아래 데이터가 포함됩니다.
 - 프론트엔드: HTML, CSS, JavaScript
 - 백엔드: FastAPI
 - DB: SQLite, SQLAlchemy ORM
-- 인증/보안: Passlib bcrypt, 관리자 세션 토큰
+- 인증/보안: Passlib bcrypt, bcrypt 4.0.1, 관리자 세션 토큰
 - 실행 환경: Docker, Docker Compose
 - 정적 파일/업로드: FastAPI StaticFiles, 로컬 볼륨
 
@@ -362,25 +362,25 @@ post-000026
 브라우저에서 글 열기:
 
 ```text
-http://localhost:8000/posts/post-000026
+http://localhost:3000/posts/post-000026
 ```
 
 JSON 조회:
 
 ```text
-http://localhost:8000/api/posts/public/post-000026
+http://localhost:3000/api/posts/public/post-000026
 ```
 
 로그인 사용자 기준 권한을 반영하려면 `user_id`를 붙입니다.
 
 ```text
-http://localhost:8000/api/posts/public/post-000026?user_id=demo
+http://localhost:3000/api/posts/public/post-000026?user_id=sample_writer
 ```
 
 상세 조회처럼 조회수 증가까지 반영하려면 `increment_view=true`를 붙입니다.
 
 ```text
-http://localhost:8000/api/posts/public/post-000026?user_id=demo&increment_view=true
+http://localhost:3000/api/posts/public/post-000026?user_id=sample_writer&increment_view=true
 ```
 
 ## 11. 커맨드 모드
@@ -458,7 +458,7 @@ light
 post 26
 post post-000026
 share
-share 25
+share 26
 share post-000026
 copy
 link
@@ -544,15 +544,26 @@ uvicorn main:app --host 0.0.0.0 --port 3000
 
 ```yaml
 ports:
-  - "3000:8000"
+  - "8080:8000"
 ```
+
+이 경우 접속 주소는 `http://localhost:8080`입니다.
 
 Docker 캐시 없이 다시 빌드:
 
 ```bash
-docker-compose build --no-cache
+docker-compose build --no-cache web
 docker-compose up
 ```
+
+컨테이너 로그에 `password cannot be longer than 72 bytes`가 보일 때:
+
+```bash
+docker-compose build --no-cache web
+docker-compose up --force-recreate
+```
+
+이 프로젝트는 `passlib[bcrypt]==1.7.4`, `bcrypt==4.0.1`로 고정되어 있습니다. 예전 이미지 캐시가 남아 있으면 최신 `bcrypt`가 들어간 컨테이너가 실행될 수 있으므로 위처럼 다시 빌드합니다.
 
 Compose 설정 확인:
 

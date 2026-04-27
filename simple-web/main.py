@@ -66,7 +66,7 @@ class UserDB(Base):
 class PostDB(Base):
     __tablename__ = "posts"
     id = Column(Integer, primary_key=True, index=True)
-    public_id = Column(String, unique=True, index=True, default="")
+    public_id = Column(String, unique=True, index=True, nullable=True)
     author_id = Column(String, index=True)
     content = Column(Text)
     image_paths = Column(String, default="")
@@ -297,7 +297,7 @@ def ensure_schema_updates():
     ensure_column("users", "hide_like_counts", "BOOLEAN DEFAULT 0", "UPDATE users SET hide_like_counts = 0 WHERE hide_like_counts IS NULL")
     ensure_column("posts", "author_deleted", "BOOLEAN DEFAULT 0", "UPDATE posts SET author_deleted = 0 WHERE author_deleted IS NULL")
     ensure_column("posts", "admin_deleted", "BOOLEAN DEFAULT 0", "UPDATE posts SET admin_deleted = 0 WHERE admin_deleted IS NULL")
-    ensure_column("posts", "public_id", "VARCHAR DEFAULT ''")
+    ensure_column("posts", "public_id", "VARCHAR")
     ensure_column("replies", "parent_id", "INTEGER DEFAULT 0", "UPDATE replies SET parent_id = 0 WHERE parent_id IS NULL")
     ensure_column("replies", "likes", "INTEGER DEFAULT 0", "UPDATE replies SET likes = 0 WHERE likes IS NULL")
     ensure_column("replies", "author_deleted", "BOOLEAN DEFAULT 0", "UPDATE replies SET author_deleted = 0 WHERE author_deleted IS NULL")
@@ -358,9 +358,11 @@ def ensure_sample_data():
 
         now = datetime.utcnow()
         primary_user_id = os.getenv("SWEET_BOOK_SAMPLE_PRIMARY_ID", "sample_writer").strip() or "sample_writer"
-        primary_password = os.getenv("SWEET_BOOK_SAMPLE_PRIMARY_PASSWORD", primary_user_id).strip() or primary_user_id
+        primary_password = os.getenv("SWEET_BOOK_SAMPLE_PRIMARY_PASSWORD", "sample_writer123").strip() or "sample_writer123"
         secondary_user_id = os.getenv("SWEET_BOOK_SAMPLE_SECONDARY_ID", "sample_reader").strip() or "sample_reader"
-        secondary_password = os.getenv("SWEET_BOOK_SAMPLE_SECONDARY_PASSWORD", secondary_user_id).strip() or secondary_user_id
+        secondary_password = os.getenv("SWEET_BOOK_SAMPLE_SECONDARY_PASSWORD", "sample_reader123").strip() or "sample_reader123"
+        if primary_user_id == secondary_user_id:
+            secondary_user_id = f"{secondary_user_id}_reader"
 
         sample_users = [
             UserDB(
