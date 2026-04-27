@@ -219,7 +219,7 @@ JSON에는 아래 데이터가 포함됩니다.
 
 ### 기술 스택
 
-- 프론트엔드: HTML, CSS, Vanilla JavaScript
+- 프론트엔드: HTML, CSS, JavaScript
 - 백엔드: FastAPI
 - DB: SQLite, SQLAlchemy ORM
 - 인증/보안: Passlib bcrypt, 관리자 세션 토큰
@@ -230,7 +230,7 @@ JSON에는 아래 데이터가 포함됩니다.
 
 - 과제 규모에서 빠르게 구현하고 검증하기 위해 단순한 단일 FastAPI 앱 구조를 선택했습니다.
 - SQLite는 별도 DB 서버 없이 Docker 한 번으로 실행할 수 있어 심사 환경 재현성이 좋습니다.
-- Vanilla JavaScript는 빌드 단계 없이 바로 UI를 확인할 수 있어 제출 안정성이 높습니다.
+- JavaScript는 빌드 단계 없이 바로 UI를 확인할 수 있어 제출 안정성이 높습니다.
 - Docker Compose로 백엔드, 정적 UI, DB 파일 저장을 한 번에 실행할 수 있습니다.
 
 ### 주요 디렉터리 구조

@@ -5,7 +5,7 @@ services:
       dockerfile: Dockerfile
     ports:
       # Change the left side to change the host port, for example "3000:8000".
-      - "8000:8000"
+      - "3000:8000"
     environment:
       DATABASE_URL: sqlite:////app/data/users.db
       SWEET_BOOK_ADMIN_ID: ${SWEET_BOOK_ADMIN_ID:-admin}
