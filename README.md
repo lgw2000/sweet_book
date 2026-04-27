@@ -153,7 +153,7 @@ docker-compose up --build
 콘텐츠 서비스의 핵심 플로우가 동작합니다.
 
 - 사용자는 글과 이미지를 작성할 수 있습니다.
-- 피드에서 최신/인기/관련 게시글을 조회할 수 있습니다.
+- 피드에서 최신/인기 게시글을 조회할 수 있습니다.
 - 글 상세 화면에서 댓글과 재귀 대댓글을 작성할 수 있습니다.
 - 좋아요, 저장, 공유, 신고, 삭제 플로우가 동작합니다.
 - 멘션, 댓글, 좋아요, 팔로잉 새 글 알림을 확인할 수 있습니다.
@@ -291,6 +291,7 @@ AI 도구는 반복 구현 속도를 높이는 데 사용했고, 최종 동작�
 - 책 미리보기 PDF 또는 인쇄용 레이아웃 생성
 - 이미지 편집, 표지 선택, 페이지 순서 드래그 편집
 - 관리자 신고 처리 상태 변경과 사용자 제재 이력
+- 공개된 트위터의 알고리즘을 모방하여 관련 피드 추가
 - 모바일 버전
 
 ## 7. 일반 사용자 사용법
@@ -355,31 +356,31 @@ HOOK은 사용자의 기록을 기반으로 책을 구성하는 기능입니다.
 예시:
 
 ```text
-post-000025
+post-000026
 ```
 
 브라우저에서 글 열기:
 
 ```text
-http://localhost:8000/posts/post-000025
+http://localhost:8000/posts/post-000026
 ```
 
 JSON 조회:
 
 ```text
-http://localhost:8000/api/posts/public/post-000025
+http://localhost:8000/api/posts/public/post-000026
 ```
 
 로그인 사용자 기준 권한을 반영하려면 `user_id`를 붙입니다.
 
 ```text
-http://localhost:8000/api/posts/public/post-000025?user_id=demo
+http://localhost:8000/api/posts/public/post-000026?user_id=demo
 ```
 
 상세 조회처럼 조회수 증가까지 반영하려면 `increment_view=true`를 붙입니다.
 
 ```text
-http://localhost:8000/api/posts/public/post-000025?user_id=demo&increment_view=true
+http://localhost:8000/api/posts/public/post-000026?user_id=demo&increment_view=true
 ```
 
 ## 11. 커맨드 모드
@@ -427,9 +428,7 @@ me
 latest
 pop
 popular
-related
 feed popular
-feed related
 feed latest
 ```
 
@@ -456,11 +455,11 @@ light
 글 열기와 공유:
 
 ```text
-post 25
-post post-000025
+post 26
+post post-000026
 share
 share 25
-share post-000025
+share post-000026
 copy
 link
 ```

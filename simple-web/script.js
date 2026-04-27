@@ -258,7 +258,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function restoreViewState() {
         const saved = getSavedViewState();
-        const validFeedTypes = new Set(['latest', 'popular', 'related']);
+        const validFeedTypes = new Set(['latest', 'popular']);
         const validPopularTimes = new Set(['alltime', 'year', 'month', 'week', 'day']);
         const validNotificationTabs = new Set(['all', 'mentions', 'likes', 'comments']);
         const validActivityPeriods = new Set(['day', 'week', 'month', 'year']);
@@ -617,14 +617,14 @@ document.addEventListener('DOMContentLoaded', () => {
             ['이동', 'top / bot', '현재 열려 있는 화면의 맨 위 또는 맨 아래로 이동합니다.'],
             ['선택 모드', 'sel / select', '글과 탭을 키보드로 선택합니다. WASD, 방향키, Tab으로 이동합니다.'],
             ['선택 액션', 'open, like, share, save, comment, report, delete', '선택된 글을 열거나 좋아요, 공유, 저장, 댓글, 신고, 삭제를 실행합니다.'],
-            ['피드', 'latest / pop / related / feed popular', '최신 피드, 인기 피드, 관련 피드로 전환합니다.'],
+            ['피드', 'latest / pop / feed popular', '최신 피드와 인기 피드로 전환합니다.'],
             ['주요 화면', 'home / hook / noti / act / me', '홈, HOOK, 알림, 내 활동, 내 프로필로 이동합니다.'],
             ['프로필', 'profile 아이디 / pf 아이디', '입력한 사용자 프로필을 엽니다. @는 붙여도 되고 안 붙여도 됩니다.'],
             ['설정', 'settings / privacy / content', '설정 홈, 개인정보 보호, 콘텐츠 기본설정으로 이동합니다.'],
             ['작성/신고', 'new / bug', '글쓰기 입력창으로 이동하거나 문제신고 창을 엽니다.'],
             ['화면 모드', 'theme / dark / light', 'theme은 라이트/다크를 토글하고, dark와 light는 원하는 모드로 바로 고정합니다.'],
             ['새로고침', 'refresh / reload', '브라우저 전체 새로고침 없이 현재 보고 있는 화면 데이터만 다시 불러옵니다.'],
-            ['글 바로 열기', 'post 번호 / post 공개ID', '예: post 25 또는 post post-000025처럼 입력하면 해당 글 상세 화면을 바로 엽니다.'],
+            ['글 바로 열기', 'post 번호 / post 공개ID', '예: post 26 또는 post post-000026처럼 입력하면 해당 글 상세 화면을 바로 엽니다.'],
             ['글 공유', 'share / sh / share 번호 / share 공개ID', '현재 상세 글, 선택한 글, 입력한 글의 공유창을 열고 불가능하면 URL을 복사합니다.'],
             ['커맨드 관리', 'clear / exit / close / q', 'clear는 커맨드 기록을 지우고, exit/close/q는 커맨드 모드를 종료합니다.']
         ];
@@ -761,11 +761,10 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        if (['home', 'latest', 'pop', 'popular', 'related'].includes(commandName)) {
+        if (['home', 'latest', 'pop', 'popular'].includes(commandName)) {
             switchMainSection('home');
             if (commandName === 'latest') state.currentFeedType = 'latest';
             if (commandName === 'pop' || commandName === 'popular') state.currentFeedType = 'popular';
-            if (commandName === 'related') state.currentFeedType = 'related';
             syncFeedControls();
             saveViewState({ mainSection: 'home', feedType: state.currentFeedType });
             await loadFeed(commandName === 'latest' || commandName === 'home');
@@ -776,7 +775,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (commandName === 'feed' && query) {
             const feedName = query.toLowerCase();
-            const nextType = feedName.startsWith('pop') ? 'popular' : feedName.startsWith('rel') ? 'related' : 'latest';
+            const nextType = feedName.startsWith('pop') ? 'popular' : 'latest';
             switchMainSection('home');
             state.currentFeedType = nextType;
             syncFeedControls();
