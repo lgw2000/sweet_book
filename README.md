@@ -96,17 +96,23 @@ http://localhost:3000
 SWEET_BOOK_ADMIN_ID=admin
 SWEET_BOOK_ADMIN_PASSWORD=admin1234
 SWEET_BOOK_SEED_SAMPLE=true
+SWEET_BOOK_SAMPLE_PRIMARY_ID=sample_writer
+SWEET_BOOK_SAMPLE_PRIMARY_PASSWORD=sample_writer123
+SWEET_BOOK_SAMPLE_SECONDARY_ID=sample_reader
+SWEET_BOOK_SAMPLE_SECONDARY_PASSWORD=sample_reader123
 ```
 
 관리자 계정은 일반 회원가입으로 만들 수 없고, 서버 시작 시 환경변수 기준으로 자동 생성됩니다.
 
 ### 샘플 계정
 
+샘플 계정도 코드에 고정하지 않고 `.env` 값으로 생성됩니다. 기본값은 아래와 같습니다.
+
 ```text
-아이디: lgw2000
-비밀번호: lgw2000
-아이디: glw2000
-비밀번호: glw2000
+아이디: sample_writer
+비밀번호: sample_writer123
+아이디: sample_reader
+비밀번호: sample_reader123
 ```
 
 관리자:

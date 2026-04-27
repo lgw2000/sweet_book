@@ -357,20 +357,25 @@ def ensure_sample_data():
             return
 
         now = datetime.utcnow()
+        primary_user_id = os.getenv("SWEET_BOOK_SAMPLE_PRIMARY_ID", "sample_writer").strip() or "sample_writer"
+        primary_password = os.getenv("SWEET_BOOK_SAMPLE_PRIMARY_PASSWORD", primary_user_id).strip() or primary_user_id
+        secondary_user_id = os.getenv("SWEET_BOOK_SAMPLE_SECONDARY_ID", "sample_reader").strip() or "sample_reader"
+        secondary_password = os.getenv("SWEET_BOOK_SAMPLE_SECONDARY_PASSWORD", secondary_user_id).strip() or secondary_user_id
+
         sample_users = [
             UserDB(
-                user_id="lgw2000",
-                email="lgw2000@example.com",
-                hashed_password=pwd_context.hash("lgw2000"),
-                display_name="lgw2000",
+                user_id=primary_user_id,
+                email=f"{primary_user_id}@example.com",
+                hashed_password=pwd_context.hash(primary_password),
+                display_name=primary_user_id,
                 bio="일상의 짧은 장면을 책으로 묶어보는 사용자입니다.",
                 interests=json.dumps(["사진", "메모", "HOOK"], ensure_ascii=False),
             ),
             UserDB(
-                user_id="glw2000",
-                email="glw2000@example.com",
-                hashed_password=pwd_context.hash("glw2000"),
-                display_name="glw2000",
+                user_id=secondary_user_id,
+                email=f"{secondary_user_id}@example.com",
+                hashed_password=pwd_context.hash(secondary_password),
+                display_name=secondary_user_id,
                 bio="댓글과 멘션으로 다른 사용자와 자주 교류합니다.",
                 interests=json.dumps(["댓글", "피드", "커뮤니티"], ensure_ascii=False),
             ),
@@ -379,11 +384,11 @@ def ensure_sample_data():
         db.flush()
 
         sample_posts = [
-            PostDB(author_id="lgw2000", content="첫 번째 HOOK 샘플 글입니다. 오늘의 기록을 책으로 묶어볼 수 있어요.", likes=3, views=42, created_at=now - timedelta(hours=7)),
-            PostDB(author_id="lgw2000", content="@glw2000 님에게 공유하고 싶은 두 번째 장면입니다.", likes=2, views=31, created_at=now - timedelta(hours=5)),
-            PostDB(author_id="glw2000", content="댓글과 멘션 알림을 확인하기 위한 샘플 게시글입니다.", likes=1, views=18, created_at=now - timedelta(hours=4)),
-            PostDB(author_id="glw2000", content="저장한 글과 좋아요한 글을 모아서 HOOK 책을 구성해보세요.", likes=4, views=55, created_at=now - timedelta(hours=3)),
-            PostDB(author_id="lgw2000", content="주문 데이터 JSON 내보내기에 포함될 샘플 콘텐츠입니다.", likes=5, views=77, created_at=now - timedelta(hours=2)),
+            PostDB(author_id=primary_user_id, content="첫 번째 HOOK 샘플 글입니다. 오늘의 기록을 책으로 묶어볼 수 있어요.", likes=3, views=42, created_at=now - timedelta(hours=7)),
+            PostDB(author_id=primary_user_id, content=f"@{secondary_user_id} 님에게 공유하고 싶은 두 번째 장면입니다.", likes=2, views=31, created_at=now - timedelta(hours=5)),
+            PostDB(author_id=secondary_user_id, content="댓글과 멘션 알림을 확인하기 위한 샘플 게시글입니다.", likes=1, views=18, created_at=now - timedelta(hours=4)),
+            PostDB(author_id=secondary_user_id, content="저장한 글과 좋아요한 글을 모아서 HOOK 책을 구성해보세요.", likes=4, views=55, created_at=now - timedelta(hours=3)),
+            PostDB(author_id=primary_user_id, content="주문 데이터 JSON 내보내기에 포함될 샘플 콘텐츠입니다.", likes=5, views=77, created_at=now - timedelta(hours=2)),
         ]
         db.add_all(sample_posts)
         db.flush()
@@ -391,27 +396,27 @@ def ensure_sample_data():
             post.public_id = make_post_public_id(post.id)
 
         db.add_all([
-            LikeDB(post_id=sample_posts[0].id, user_id="glw2000", created_at=now - timedelta(hours=6)),
-            LikeDB(post_id=sample_posts[1].id, user_id="glw2000", created_at=now - timedelta(hours=4, minutes=30)),
-            LikeDB(post_id=sample_posts[3].id, user_id="lgw2000", created_at=now - timedelta(hours=2, minutes=40)),
-            SaveDB(post_id=sample_posts[0].id, user_id="glw2000", created_at=now - timedelta(hours=5, minutes=50)),
-            SaveDB(post_id=sample_posts[4].id, user_id="glw2000", created_at=now - timedelta(hours=1, minutes=30)),
-            FollowDB(follower_id="glw2000", following_id="lgw2000", created_at=now - timedelta(hours=5)),
+            LikeDB(post_id=sample_posts[0].id, user_id=secondary_user_id, created_at=now - timedelta(hours=6)),
+            LikeDB(post_id=sample_posts[1].id, user_id=secondary_user_id, created_at=now - timedelta(hours=4, minutes=30)),
+            LikeDB(post_id=sample_posts[3].id, user_id=primary_user_id, created_at=now - timedelta(hours=2, minutes=40)),
+            SaveDB(post_id=sample_posts[0].id, user_id=secondary_user_id, created_at=now - timedelta(hours=5, minutes=50)),
+            SaveDB(post_id=sample_posts[4].id, user_id=secondary_user_id, created_at=now - timedelta(hours=1, minutes=30)),
+            FollowDB(follower_id=secondary_user_id, following_id=primary_user_id, created_at=now - timedelta(hours=5)),
         ])
 
         reply = ReplyDB(
             post_id=sample_posts[0].id,
-            author_id="glw2000",
-            content="@lgw2000 이 글은 댓글/멘션 알림 확인용 샘플 댓글입니다.",
+            author_id=secondary_user_id,
+            content=f"@{primary_user_id} 이 글은 댓글/멘션 알림 확인용 샘플 댓글입니다.",
             likes=1,
             created_at=now - timedelta(hours=4, minutes=55),
         )
         db.add(reply)
         db.flush()
-        db.add(ReplyLikeDB(reply_id=reply.id, user_id="lgw2000", created_at=now - timedelta(hours=3, minutes=20)))
+        db.add(ReplyLikeDB(reply_id=reply.id, user_id=primary_user_id, created_at=now - timedelta(hours=3, minutes=20)))
 
         first_book = HookBookDB(
-            user_id="lgw2000",
+            user_id=primary_user_id,
             title="샘플 HOOK 책",
             source_type="selected",
             post_ids=json.dumps([sample_posts[0].id, sample_posts[1].id, sample_posts[4].id]),
@@ -420,7 +425,7 @@ def ensure_sample_data():
             updated_at=now - timedelta(hours=1, minutes=10),
         )
         second_book = HookBookDB(
-            user_id="lgw2000",
+            user_id=primary_user_id,
             title="저장한 글 모음",
             source_type="saved",
             post_ids=json.dumps([sample_posts[0].id, sample_posts[4].id]),
@@ -432,8 +437,8 @@ def ensure_sample_data():
         db.flush()
 
         db.add_all([
-            HookOrderDB(user_id="lgw2000", book_id=first_book.id, status="pending", memo="심사용 샘플 주문입니다.", created_at=now - timedelta(hours=1), updated_at=now - timedelta(hours=1)),
-            HookOrderDB(user_id="lgw2000", book_id=first_book.id, status="processing", memo="상태 변경 확인용 주문입니다.", created_at=now - timedelta(minutes=50), updated_at=now - timedelta(minutes=30)),
+            HookOrderDB(user_id=primary_user_id, book_id=first_book.id, status="pending", memo="심사용 샘플 주문입니다.", created_at=now - timedelta(hours=1), updated_at=now - timedelta(hours=1)),
+            HookOrderDB(user_id=primary_user_id, book_id=first_book.id, status="processing", memo="상태 변경 확인용 주문입니다.", created_at=now - timedelta(minutes=50), updated_at=now - timedelta(minutes=30)),
         ])
         db.commit()
     finally:
