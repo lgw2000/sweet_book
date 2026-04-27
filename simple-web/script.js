@@ -41,6 +41,7 @@ document.addEventListener('DOMContentLoaded', () => {
         feedOffset: 0,
         feedHasMore: false,
         feedLoadingMore: false,
+        openingPermalink: false,
         commandSelectionMode: false,
         commandSelectedElement: null,
         selectedImages: [],
@@ -421,7 +422,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             selectCommandElement(state.commandSelectedElement, { scroll: false });
         }
-        addCommandModeHistory('success', '선택 모드 켜짐', 'WASD/방향키 이동 · Enter 열기 · L 좋아요 · B 저장 · C 댓글');
+        addCommandModeHistory('success', '선택 모드 켜짐', 'WASD/방향키 이동 · Enter 열기 · L 좋아요 · Y 공유 · B 저장 · C 댓글');
     }
 
     function moveCommandSelection(direction) {
@@ -492,6 +493,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!target) return;
         const actionMap = {
             like: ['.like-btn'],
+            share: ['.post-menu-share-btn'],
             save: ['.post-menu-save-btn', '.reply-save-btn'],
             report: ['.post-menu-report-btn', '.reply-report-btn'],
             delete: ['.post-menu-delete-btn', '.reply-delete-btn']
@@ -578,6 +580,7 @@ document.addEventListener('DOMContentLoaded', () => {
             l: 'like',
             ' ': 'like',
             b: 'save',
+            y: 'share',
             c: 'comment',
             i: 'comment',
             r: 'report',
@@ -613,7 +616,7 @@ document.addEventListener('DOMContentLoaded', () => {
             ['검색', 'sc 검색어 / search 검색어', '검색 탭으로 이동해서 입력한 검색어를 바로 검색합니다.'],
             ['이동', 'top / bot', '현재 열려 있는 화면의 맨 위 또는 맨 아래로 이동합니다.'],
             ['선택 모드', 'sel / select', '글과 탭을 키보드로 선택합니다. WASD, 방향키, Tab으로 이동합니다.'],
-            ['선택 액션', 'open, like, save, comment, report, delete', '선택된 글을 열거나 좋아요, 저장, 댓글, 신고, 삭제를 실행합니다.'],
+            ['선택 액션', 'open, like, share, save, comment, report, delete', '선택된 글을 열거나 좋아요, 공유, 저장, 댓글, 신고, 삭제를 실행합니다.'],
             ['피드', 'latest / pop / related / feed popular', '최신 피드, 인기 피드, 관련 피드로 전환합니다.'],
             ['주요 화면', 'home / hook / noti / act / me', '홈, HOOK, 알림, 내 활동, 내 프로필로 이동합니다.'],
             ['프로필', 'profile 아이디 / pf 아이디', '입력한 사용자 프로필을 엽니다. @는 붙여도 되고 안 붙여도 됩니다.'],
@@ -621,7 +624,8 @@ document.addEventListener('DOMContentLoaded', () => {
             ['작성/신고', 'new / bug', '글쓰기 입력창으로 이동하거나 문제신고 창을 엽니다.'],
             ['화면 모드', 'theme / dark / light', 'theme은 라이트/다크를 토글하고, dark와 light는 원하는 모드로 바로 고정합니다.'],
             ['새로고침', 'refresh / reload', '브라우저 전체 새로고침 없이 현재 보고 있는 화면 데이터만 다시 불러옵니다.'],
-            ['글 바로 열기', 'post 번호', '예: post 25처럼 입력하면 해당 번호의 글 상세 화면을 바로 엽니다.'],
+            ['글 바로 열기', 'post 번호 / post 공개ID', '예: post 25 또는 post post-000025처럼 입력하면 해당 글 상세 화면을 바로 엽니다.'],
+            ['글 공유', 'share / sh / share 번호 / share 공개ID', '현재 상세 글, 선택한 글, 입력한 글의 공유창을 열고 불가능하면 URL을 복사합니다.'],
             ['커맨드 관리', 'clear / exit / close / q', 'clear는 커맨드 기록을 지우고, exit/close/q는 커맨드 모드를 종료합니다.']
         ];
         commands.slice().reverse().forEach(([title, command, detail]) => {
@@ -892,14 +896,35 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (commandName === 'post' && query) {
-            const postId = Number(query.replace('#', ''));
-            if (!Number.isFinite(postId)) {
+            const cleanedQuery = query.replace('#', '');
+            if (!cleanedQuery) {
                 addCommandModeHistory('error', '글 번호를 확인해주세요', command);
                 return;
             }
-            await openPostDetail({ id: postId });
+            await openPostDetail(/^\d+$/.test(cleanedQuery) ? { id: Number(cleanedQuery) } : { public_id: cleanedQuery });
             resetCommandModeInput();
-            addCommandModeHistory('success', '글 열기', `#${postId}`);
+            addCommandModeHistory('success', '글 열기', `#${cleanedQuery}`);
+            return;
+        }
+
+        if (['share', 'sh', 'link', 'copy'].includes(commandName)) {
+            if (query || state.currentDetailPost) {
+                try {
+                    const postToShare = await fetchPostForShare(query);
+                    if (!postToShare) {
+                        addCommandModeHistory('error', '공유할 글을 선택해주세요', '상세 글을 열거나 선택 모드에서 글을 고른 뒤 share를 입력하세요.');
+                        return;
+                    }
+                    const result = await sharePost(postToShare, null, { forceCopy: ['link', 'copy'].includes(commandName) });
+                    resetCommandModeInput();
+                    addCommandModeHistory('success', result === 'shared' ? '공유창 열기' : 'URL 복사 완료', getPostPublicId(postToShare));
+                } catch (error) {
+                    addCommandModeHistory('error', '공유 실패', error.message);
+                }
+                return;
+            }
+            runCommandSelectionAction('share');
+            resetCommandModeInput(false);
             return;
         }
 
@@ -1038,6 +1063,106 @@ document.addEventListener('DOMContentLoaded', () => {
             .replace(/>/g, '&gt;')
             .replace(/"/g, '&quot;')
             .replace(/'/g, '&#39;');
+    }
+
+    function getPostPublicId(post = {}) {
+        if (post.public_id) return post.public_id;
+        return post.id ? `post-${String(post.id).padStart(6, '0')}` : 'post-unknown';
+    }
+
+    function normalizePostIdentifier(value = '') {
+        const cleaned = String(value || '').replace('#', '').trim();
+        const publicIdMatch = cleaned.match(/^post-\d{6}/);
+        return publicIdMatch ? publicIdMatch[0] : cleaned;
+    }
+
+    function extractNumericPostId(value = '') {
+        const cleaned = normalizePostIdentifier(value);
+        if (/^\d+$/.test(cleaned)) return Number(cleaned);
+        const publicIdMatch = cleaned.match(/^post-(\d{6})/);
+        if (publicIdMatch) return Number(publicIdMatch[1]);
+        return 0;
+    }
+
+    function getPostUrl(post = {}) {
+        const publicId = getPostPublicId(post);
+        return post.url || `/posts/${encodeURIComponent(publicId)}`;
+    }
+
+    function getPostApiUrl(post = {}) {
+        const publicId = getPostPublicId(post);
+        return post.api_url || `/api/posts/public/${encodeURIComponent(publicId)}`;
+    }
+
+    function getAbsolutePostUrl(post = {}) {
+        return new URL(getPostUrl(post), window.location.origin).href;
+    }
+
+    async function copyTextToClipboard(text) {
+        if (navigator.clipboard?.writeText) {
+            await navigator.clipboard.writeText(text);
+            return;
+        }
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.setAttribute('readonly', '');
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        textarea.remove();
+    }
+
+    async function sharePost(post = {}, sourceButton = null, options = {}) {
+        const url = getAbsolutePostUrl(post);
+        if (!options.forceCopy && navigator.share) {
+            await navigator.share({ url });
+            return 'shared';
+        }
+        await copyTextToClipboard(url);
+        if (sourceButton) {
+            const previousHtml = sourceButton.innerHTML;
+            sourceButton.innerHTML = '<i class="ph ph-check-circle"></i>URL 복사됨';
+            sourceButton.classList.add('shared');
+            setTimeout(() => {
+                sourceButton.innerHTML = previousHtml;
+                sourceButton.classList.remove('shared');
+            }, 1300);
+        }
+        return 'copied';
+    }
+
+    async function fetchPostForShare(query) {
+        const cleanedQuery = String(query || '').replace('#', '').trim();
+        if (!cleanedQuery) return state.currentDetailPost;
+        const post = await fetchPostByIdentifier(cleanedQuery);
+        if (!post) throw new Error('공유할 글을 찾지 못했습니다.');
+        return post;
+    }
+
+    async function fetchPostByIdentifier(identifier, incrementView = false) {
+        const cleaned = normalizePostIdentifier(identifier);
+        if (!cleaned) return null;
+        const params = `user_id=${encodeURIComponent(state.currentUserId)}&increment_view=${incrementView ? 'true' : 'false'}`;
+        const endpoints = [];
+        if (/^\d+$/.test(cleaned)) {
+            endpoints.push(`/api/post/${cleaned}?${params}`);
+        } else {
+            endpoints.push(`/api/posts/public/${encodeURIComponent(cleaned)}?${params}`);
+            const numericId = extractNumericPostId(cleaned);
+            if (numericId) endpoints.push(`/api/post/${numericId}?${params}`);
+        }
+
+        for (const endpoint of endpoints) {
+            try {
+                const res = await fetch(endpoint);
+                if (res.ok) return res.json();
+            } catch (error) {
+                console.warn(error);
+            }
+        }
+        return null;
     }
 
     function renderTextWithMentions(value = '') {
@@ -1367,21 +1492,34 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!trigger || !menu) return;
         const closeMenu = (event) => {
             if (!menu.contains(event.target) && !trigger.contains(event.target)) {
-                menu.classList.add('hidden');
+                hideFloatingMenu(menu);
                 document.removeEventListener('click', closeMenu);
             }
         };
         trigger.addEventListener('click', (e) => {
             e.stopPropagation();
             const willOpen = menu.classList.contains('hidden');
-            menu.classList.toggle('hidden');
             document.removeEventListener('click', closeMenu);
             if (willOpen) {
-                positionFloatingMenu(trigger, menu);
+                openFloatingMenu(trigger, menu);
                 setTimeout(() => document.addEventListener('click', closeMenu), 0);
+            } else {
+                hideFloatingMenu(menu);
             }
         });
         menu.addEventListener('click', (e) => e.stopPropagation());
+        root.querySelector('.post-menu-share-btn')?.addEventListener('click', async (event) => {
+            try {
+                const result = await sharePost(post, event.currentTarget);
+                if (result === 'shared') {
+                    hideFloatingMenu(menu);
+                } else {
+                    setTimeout(() => hideFloatingMenu(menu), 900);
+                }
+            } catch (error) {
+                if (error.name !== 'AbortError') alert(error.message || '공유에 실패했습니다.');
+            }
+        });
         root.querySelector('.post-menu-save-btn')?.addEventListener('click', async () => {
             try {
                 await toggleSavePost(post);
@@ -1390,7 +1528,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 } else {
                     const iconClass = post.is_saved ? 'ph-fill ph-bookmark' : 'ph ph-bookmark';
                     root.querySelector('.post-menu-save-btn').innerHTML = `<i class="${iconClass}"></i>${post.is_saved ? '저장 취소' : '저장'}`;
-                    menu.classList.add('hidden');
+                    hideFloatingMenu(menu);
                 }
                 await loadFeed();
             } catch (error) {
@@ -1407,46 +1545,89 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!trigger || !menu) return;
         const closeMenu = (event) => {
             if (!menu.contains(event.target) && !trigger.contains(event.target)) {
-                menu.classList.add('hidden');
+                hideFloatingMenu(menu);
                 document.removeEventListener('click', closeMenu);
             }
         };
         trigger.addEventListener('click', (e) => {
             e.stopPropagation();
             const willOpen = menu.classList.contains('hidden');
-            menu.classList.toggle('hidden');
             document.removeEventListener('click', closeMenu);
             if (willOpen) {
-                positionFloatingMenu(trigger, menu);
+                openFloatingMenu(trigger, menu);
                 setTimeout(() => document.addEventListener('click', closeMenu), 0);
+            } else {
+                hideFloatingMenu(menu);
             }
         });
         menu.addEventListener('click', (e) => e.stopPropagation());
     }
 
-    function positionFloatingMenu(trigger, menu) {
+    function hideFloatingMenu(menu) {
+        menu.classList.add('hidden');
         menu.classList.remove('drop-up', 'align-left', 'is-floating');
         menu.style.removeProperty('--menu-top');
         menu.style.removeProperty('--menu-left');
-        requestAnimationFrame(() => {
-            const triggerRect = trigger.getBoundingClientRect();
-            const menuRect = menu.getBoundingClientRect();
-            const margin = 14;
-            const opensUp = triggerRect.bottom + 8 + menuRect.height > window.innerHeight - margin
-                && triggerRect.top > menuRect.height + margin;
-            const top = opensUp
-                ? triggerRect.top - menuRect.height - 8
-                : triggerRect.bottom + 8;
-            const left = Math.min(
-                Math.max(margin, triggerRect.right - menuRect.width),
-                window.innerWidth - menuRect.width - margin
-            );
+        menu.style.removeProperty('visibility');
+        menu.style.removeProperty('pointer-events');
+        restoreMenuFromPortal(menu);
+    }
 
-            menu.classList.add('is-floating');
-            if (opensUp) menu.classList.add('drop-up');
-            menu.style.setProperty('--menu-top', `${Math.max(margin, top)}px`);
-            menu.style.setProperty('--menu-left', `${left}px`);
+    function closeOtherPostMenus(currentMenu) {
+        document.querySelectorAll('.post-more-menu:not(.hidden)').forEach(menu => {
+            if (menu !== currentMenu) hideFloatingMenu(menu);
         });
+    }
+
+    function moveMenuToPortal(menu) {
+        if (menu.parentNode === document.body) return;
+        menu.__portalParent = menu.parentNode;
+        menu.__portalNext = menu.nextSibling;
+        document.body.appendChild(menu);
+    }
+
+    function restoreMenuFromPortal(menu) {
+        const parent = menu.__portalParent;
+        const next = menu.__portalNext;
+        menu.__portalParent = null;
+        menu.__portalNext = null;
+        if (menu.parentNode !== document.body) return;
+        if (parent?.isConnected) {
+            parent.insertBefore(menu, next && next.parentNode === parent ? next : null);
+        } else {
+            menu.remove();
+        }
+    }
+
+    function openFloatingMenu(trigger, menu) {
+        closeOtherPostMenus(menu);
+        moveMenuToPortal(menu);
+        menu.classList.remove('drop-up', 'align-left');
+        menu.classList.add('is-floating');
+        menu.style.setProperty('--menu-top', '0px');
+        menu.style.setProperty('--menu-left', '0px');
+        menu.style.visibility = 'hidden';
+        menu.style.pointerEvents = 'none';
+        menu.classList.remove('hidden');
+
+        const triggerRect = trigger.getBoundingClientRect();
+        const menuRect = menu.getBoundingClientRect();
+        const margin = 14;
+        const opensUp = triggerRect.bottom + 8 + menuRect.height > window.innerHeight - margin
+            && triggerRect.top > menuRect.height + margin;
+        const top = opensUp
+            ? triggerRect.top - menuRect.height - 8
+            : triggerRect.bottom + 8;
+        const left = Math.min(
+            Math.max(margin, triggerRect.right - menuRect.width),
+            window.innerWidth - menuRect.width - margin
+        );
+
+        if (opensUp) menu.classList.add('drop-up');
+        menu.style.setProperty('--menu-top', `${Math.max(margin, top)}px`);
+        menu.style.setProperty('--menu-left', `${left}px`);
+        menu.style.removeProperty('visibility');
+        menu.style.removeProperty('pointer-events');
     }
 
     async function refreshCurrentDetailPost() {
@@ -1708,6 +1889,8 @@ document.addEventListener('DOMContentLoaded', () => {
         postEl.className = 'feed-post';
         postEl.dataset.commandTarget = 'post';
         postEl.dataset.postId = post.id;
+        postEl.dataset.publicId = getPostPublicId(post);
+        postEl.dataset.postUrl = getPostUrl(post);
         postEl.tabIndex = 0;
         const metrics = createMetricsText(post);
         const images = renderPostImages(post.images || [], 'feed');
@@ -1726,7 +1909,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div class="post-sub-id">@${escapeHtml(post.author_id)}</div>
                     </div>
                 </div>
-                <span style="color:#737373; font-size:12px;">${getTimeStr(post.created_at)}</span>
+                <div class="post-header-meta">
+                    <span>${getTimeStr(post.created_at)}</span>
+                </div>
             </div>
             <div class="post-content">${images}${post.content ? `<div class="post-text-below-image">${renderTextWithMentions(post.content)}</div>` : ''}</div>
                 <div class="post-actions">
@@ -1738,6 +1923,10 @@ document.addEventListener('DOMContentLoaded', () => {
                             <i class="ph ph-dots-three-vertical"></i>
                         </button>
                         <div class="post-more-menu hidden">
+                            <button type="button" class="post-more-item post-menu-share-btn">
+                                <i class="ph ph-share-network"></i>
+                                공유
+                            </button>
                             <button type="button" class="post-more-item post-menu-save-btn">
                                 <i class="ph${post.is_saved ? '-fill' : ''} ph-bookmark"></i>
                                 ${post.is_saved ? '저장 취소' : '저장'}
@@ -1856,15 +2045,21 @@ document.addEventListener('DOMContentLoaded', () => {
         replies.forEach(reply => renderReply(reply, 0));
     }
 
-    async function openPostDetail(post) {
+    async function openPostDetail(post, options = {}) {
         try {
-            const res = await fetch(`/api/post/${post.id}?user_id=${encodeURIComponent(state.currentUserId)}&increment_view=true`);
-            if (!res.ok) throw new Error('게시글을 불러오지 못했습니다.');
-            const freshPost = await res.json();
+            const identifier = post.id || post.public_id || getPostPublicId(post);
+            const freshPost = await fetchPostByIdentifier(identifier, true);
+            if (!freshPost) throw new Error('게시글을 불러오지 못했습니다.');
             renderPostDetail(freshPost);
-            await loadFeed();
+            if (!options.skipFeedRefresh) {
+                await loadFeed(false);
+            }
         } catch (error) {
-            renderPostDetail(post);
+            if (post?.id || post?.author_id) {
+                renderPostDetail(post);
+            } else {
+                alert(error.message || '게시글을 불러오지 못했습니다.');
+            }
         }
     }
 
@@ -1888,12 +2083,18 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 </div>
                 <div class="post-detail-header-actions">
-                    <span style="color:#737373; font-size:12px;">${getTimeStr(post.created_at)}</span>
+                    <div class="post-header-meta detail">
+                        <span>${getTimeStr(post.created_at)}</span>
+                    </div>
                     <div class="post-more-menu-wrap">
                         <button type="button" class="post-more-trigger" aria-label="글 옵션">
                             <i class="ph ph-dots-three-vertical"></i>
                         </button>
                         <div class="post-more-menu hidden">
+                            <button type="button" class="post-more-item post-menu-share-btn">
+                                <i class="ph ph-share-network"></i>
+                                공유
+                            </button>
                             <button type="button" class="post-more-item post-menu-save-btn">
                                 <i class="ph${post.is_saved ? '-fill' : ''} ph-bookmark"></i>
                                 ${post.is_saved ? '저장 취소' : '저장'}
@@ -1951,6 +2152,35 @@ document.addEventListener('DOMContentLoaded', () => {
         state.currentDetailPost = null;
         els.detailReplyInput.value = '';
         els.detailOverlay.classList.add('hidden');
+        if (getPostPublicIdFromPath()) {
+            window.history.replaceState({}, '', '/');
+        }
+        if (!els.feedStream?.children.length) {
+            loadFeed(false);
+        }
+    }
+
+    function getPostPublicIdFromPath() {
+        const match = window.location.pathname.match(/^\/posts\/([^/?#]+)/);
+        return match ? normalizePostIdentifier(decodeURIComponent(match[1])) : '';
+    }
+
+    async function openPostPermalinkFromCurrentUrl() {
+        const publicId = getPostPublicIdFromPath();
+        if (!publicId) return false;
+        try {
+            const post = await fetchPostByIdentifier(publicId, true);
+            if (!post) throw new Error('공유된 글을 찾지 못했습니다.');
+            if (post.url && window.location.pathname !== post.url) {
+                window.history.replaceState({}, '', post.url);
+            }
+            renderPostDetail(post);
+            return true;
+        } catch (error) {
+            console.warn(error);
+            alert(error.message || '공유된 글을 불러오지 못했습니다.');
+            return false;
+        }
     }
 
     function waitForFeedImages(container = els.feedStream) {
@@ -2040,6 +2270,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function loadFeed(jumpToLatest = false) {
         if (!state.currentUserId) return;
+        if (state.openingPermalink) return;
         state.feedOffset = 0;
         state.feedHasMore = false;
         state.feedLoadingMore = false;
@@ -2383,9 +2614,10 @@ document.addEventListener('DOMContentLoaded', () => {
         posts.forEach(post => {
             const row = document.createElement('article');
             row.className = 'admin-row';
+            const publicId = getPostPublicId(post);
             row.innerHTML = `
                 <div class="admin-row-main">
-                    <div class="admin-row-title">#${post.id} @${escapeHtml(post.author_id)}</div>
+                    <div class="admin-row-title">#${post.id} · ${escapeHtml(publicId)} @${escapeHtml(post.author_id)}</div>
                     <p>${renderTextWithMentions(post.content || '이미지 게시물')}</p>
                     <small>좋아요 ${post.likes} · 조회 ${post.views} · 댓글 ${post.reply_count} · ${getTimeStr(post.created_at)}</small>
                     <div class="admin-badges">
@@ -2411,7 +2643,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function openAdminPostDetail(post, highlightedReply = null) {
         if (!els.adminPostDetailOverlay) return;
-        els.adminDetailTitle.textContent = `#${post.id} @${post.author_id}`;
+        els.adminDetailTitle.textContent = `#${post.id} · ${getPostPublicId(post)} @${post.author_id}`;
         const images = renderPostImages(post.images || [], 'detail');
         const highlightedReplyId = highlightedReply?.id || 0;
         els.adminDetailBody.innerHTML = `
@@ -3416,10 +3648,24 @@ document.addEventListener('DOMContentLoaded', () => {
         syncFeedControls();
         const savedView = getSavedViewState();
         const savedSection = savedView.mainSection || localStorage.getItem('mainSection') || 'home';
-        localStorage.setItem('mainSection', savedSection);
+        const postPermalinkId = getPostPublicIdFromPath();
+        const initialSection = postPermalinkId ? 'home' : savedSection;
+        localStorage.setItem('mainSection', initialSection);
         navigateTo('home');
-        switchMainSection(savedSection, false);
-        await Promise.all([loadMainSectionData(savedSection), loadNotifications()]);
+        switchMainSection(initialSection, false);
+        if (postPermalinkId) {
+            state.openingPermalink = true;
+            document.body.classList.add('permalink-opening');
+            const [, opened] = await Promise.all([loadNotifications(), openPostPermalinkFromCurrentUrl()]);
+            state.openingPermalink = false;
+            document.body.classList.remove('permalink-opening');
+            if (!opened) {
+                await loadFeed(false);
+            }
+            return;
+        }
+        await Promise.all([loadMainSectionData(initialSection), loadNotifications()]);
+        await openPostPermalinkFromCurrentUrl();
     }
 
     applyTheme();

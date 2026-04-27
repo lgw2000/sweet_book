@@ -66,6 +66,7 @@ class UserDB(Base):
 class PostDB(Base):
     __tablename__ = "posts"
     id = Column(Integer, primary_key=True, index=True)
+    public_id = Column(String, unique=True, index=True, default="")
     author_id = Column(String, index=True)
     content = Column(Text)
     image_paths = Column(String, default="")
@@ -249,6 +250,38 @@ def ensure_column(table_name: str, column_name: str, definition: str, backfill_s
                 conn.execute(text(backfill_sql))
 
 
+def make_post_public_id(post_id: int) -> str:
+    return f"post-{post_id:06d}"
+
+
+def get_post_public_id(post: PostDB) -> str:
+    return post.public_id or make_post_public_id(post.id)
+
+
+def get_post_public_url(post: PostDB) -> str:
+    return f"/posts/{get_post_public_id(post)}"
+
+
+def get_post_api_url(post: PostDB) -> str:
+    return f"/api/posts/public/{get_post_public_id(post)}"
+
+
+def find_post_by_public_id(db: Session, public_id: str):
+    requested_id = (public_id or "").strip().lower()
+    if not requested_id:
+        return None
+    post = db.query(PostDB).filter(PostDB.public_id == requested_id).first()
+    if post:
+        return post
+
+    # Some share targets paste surrounding text next to the URL. Public IDs are fixed
+    # as post-000000, so recover links like /posts/post-000148100 -> post-000148.
+    match = re.match(r"^(post-\d{6})", requested_id)
+    if match:
+        return db.query(PostDB).filter(PostDB.public_id == match.group(1)).first()
+    return None
+
+
 def ensure_schema_updates():
     ensure_column("likes", "created_at", "DATETIME", "UPDATE likes SET created_at = CURRENT_TIMESTAMP WHERE created_at IS NULL")
     ensure_column("saves", "created_at", "DATETIME", "UPDATE saves SET created_at = CURRENT_TIMESTAMP WHERE created_at IS NULL")
@@ -264,6 +297,7 @@ def ensure_schema_updates():
     ensure_column("users", "hide_like_counts", "BOOLEAN DEFAULT 0", "UPDATE users SET hide_like_counts = 0 WHERE hide_like_counts IS NULL")
     ensure_column("posts", "author_deleted", "BOOLEAN DEFAULT 0", "UPDATE posts SET author_deleted = 0 WHERE author_deleted IS NULL")
     ensure_column("posts", "admin_deleted", "BOOLEAN DEFAULT 0", "UPDATE posts SET admin_deleted = 0 WHERE admin_deleted IS NULL")
+    ensure_column("posts", "public_id", "VARCHAR DEFAULT ''")
     ensure_column("replies", "parent_id", "INTEGER DEFAULT 0", "UPDATE replies SET parent_id = 0 WHERE parent_id IS NULL")
     ensure_column("replies", "likes", "INTEGER DEFAULT 0", "UPDATE replies SET likes = 0 WHERE likes IS NULL")
     ensure_column("replies", "author_deleted", "BOOLEAN DEFAULT 0", "UPDATE replies SET author_deleted = 0 WHERE author_deleted IS NULL")
@@ -271,6 +305,23 @@ def ensure_schema_updates():
 
 
 ensure_schema_updates()
+
+
+def ensure_post_public_ids():
+    db = SessionLocal()
+    try:
+        posts = db.query(PostDB).filter((PostDB.public_id == None) | (PostDB.public_id == "")).all()
+        for post in posts:
+            post.public_id = make_post_public_id(post.id)
+        db.commit()
+    finally:
+        db.close()
+
+    with engine.begin() as conn:
+        conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_posts_public_id ON posts(public_id)"))
+
+
+ensure_post_public_ids()
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 app = FastAPI()
@@ -292,6 +343,111 @@ def ensure_default_admin():
 
 
 ensure_default_admin()
+
+
+def ensure_demo_data():
+    seed_enabled = os.getenv("SWEET_BOOK_SEED_DEMO", "true").lower() not in {"0", "false", "no", "off"}
+    if not seed_enabled:
+        return
+
+    db = SessionLocal()
+    try:
+        if db.query(UserDB).first():
+            return
+
+        now = datetime.utcnow()
+        demo_users = [
+            UserDB(
+                user_id="demo",
+                email="demo@example.com",
+                hashed_password=pwd_context.hash("demo1234"),
+                display_name="Demo Reader",
+                bio="심사용 데모 계정입니다. HOOK 책 만들기와 주문 흐름을 바로 확인할 수 있어요.",
+                interests=json.dumps(["기록", "책", "소셜"], ensure_ascii=False),
+            ),
+            UserDB(
+                user_id="lgw2000",
+                email="lgw2000@example.com",
+                hashed_password=pwd_context.hash("lgw2000"),
+                display_name="lgw2000",
+                bio="일상의 짧은 장면을 책으로 묶어보는 사용자입니다.",
+                interests=json.dumps(["사진", "메모", "HOOK"], ensure_ascii=False),
+            ),
+            UserDB(
+                user_id="glw2000",
+                email="glw2000@example.com",
+                hashed_password=pwd_context.hash("glw2000"),
+                display_name="glw2000",
+                bio="댓글과 멘션으로 다른 사용자와 자주 교류합니다.",
+                interests=json.dumps(["댓글", "피드", "커뮤니티"], ensure_ascii=False),
+            ),
+        ]
+        db.add_all(demo_users)
+        db.flush()
+
+        demo_posts = [
+            PostDB(author_id="lgw2000", content="첫 번째 HOOK 샘플 글입니다. 오늘의 기록을 책으로 묶어볼 수 있어요.", likes=3, views=42, created_at=now - timedelta(hours=7)),
+            PostDB(author_id="lgw2000", content="@demo 님에게 공유하고 싶은 두 번째 장면입니다.", likes=2, views=31, created_at=now - timedelta(hours=5)),
+            PostDB(author_id="glw2000", content="댓글과 멘션 알림을 확인하기 위한 데모 게시글입니다.", likes=1, views=18, created_at=now - timedelta(hours=4)),
+            PostDB(author_id="demo", content="저장한 글과 좋아요한 글을 모아서 HOOK 책을 구성해보세요.", likes=4, views=55, created_at=now - timedelta(hours=3)),
+            PostDB(author_id="lgw2000", content="주문 데이터 JSON 내보내기에 포함될 샘플 콘텐츠입니다.", likes=5, views=77, created_at=now - timedelta(hours=2)),
+        ]
+        db.add_all(demo_posts)
+        db.flush()
+        for post in demo_posts:
+            post.public_id = make_post_public_id(post.id)
+
+        db.add_all([
+            LikeDB(post_id=demo_posts[0].id, user_id="demo", created_at=now - timedelta(hours=6)),
+            LikeDB(post_id=demo_posts[1].id, user_id="demo", created_at=now - timedelta(hours=4, minutes=30)),
+            LikeDB(post_id=demo_posts[3].id, user_id="lgw2000", created_at=now - timedelta(hours=2, minutes=40)),
+            SaveDB(post_id=demo_posts[0].id, user_id="demo", created_at=now - timedelta(hours=5, minutes=50)),
+            SaveDB(post_id=demo_posts[4].id, user_id="demo", created_at=now - timedelta(hours=1, minutes=30)),
+            FollowDB(follower_id="demo", following_id="lgw2000", created_at=now - timedelta(hours=5)),
+        ])
+
+        reply = ReplyDB(
+            post_id=demo_posts[0].id,
+            author_id="glw2000",
+            content="@demo 이 글은 댓글/멘션 알림 확인용 샘플 댓글입니다.",
+            likes=1,
+            created_at=now - timedelta(hours=4, minutes=55),
+        )
+        db.add(reply)
+        db.flush()
+        db.add(ReplyLikeDB(reply_id=reply.id, user_id="demo", created_at=now - timedelta(hours=3, minutes=20)))
+
+        first_book = HookBookDB(
+            user_id="demo",
+            title="데모 HOOK 책",
+            source_type="selected",
+            post_ids=json.dumps([demo_posts[0].id, demo_posts[1].id, demo_posts[4].id]),
+            status="ordered",
+            created_at=now - timedelta(hours=2),
+            updated_at=now - timedelta(hours=1, minutes=10),
+        )
+        second_book = HookBookDB(
+            user_id="demo",
+            title="저장한 글 모음",
+            source_type="saved",
+            post_ids=json.dumps([demo_posts[0].id, demo_posts[4].id]),
+            status="draft",
+            created_at=now - timedelta(hours=1),
+            updated_at=now - timedelta(hours=1),
+        )
+        db.add_all([first_book, second_book])
+        db.flush()
+
+        db.add_all([
+            HookOrderDB(user_id="demo", book_id=first_book.id, status="pending", memo="심사용 샘플 주문입니다.", created_at=now - timedelta(hours=1), updated_at=now - timedelta(hours=1)),
+            HookOrderDB(user_id="demo", book_id=first_book.id, status="processing", memo="상태 변경 확인용 주문입니다.", created_at=now - timedelta(minutes=50), updated_at=now - timedelta(minutes=30)),
+        ])
+        db.commit()
+    finally:
+        db.close()
+
+
+ensure_demo_data()
 
 
 class SignupRequest(BaseModel):
@@ -660,8 +816,12 @@ def format_post(post: PostDB, db: Session, current_user_id: str = ""):
     children_map = {}
     for reply in visible_replies:
         children_map.setdefault(reply.parent_id or 0, []).append(reply)
+    public_id = get_post_public_id(post)
     return {
         "id": post.id,
+        "public_id": public_id,
+        "url": get_post_public_url(post),
+        "api_url": get_post_api_url(post),
         "author_id": post.author_id,
         "author_name": author.display_name if author and author.display_name else post.author_id,
         "author_profile_image": author.profile_image if author else "",
@@ -688,8 +848,12 @@ def serialize_admin_post(post: PostDB, db: Session):
     children_map = {}
     for reply in replies:
         children_map.setdefault(reply.parent_id or 0, []).append(reply)
+    public_id = get_post_public_id(post)
     return {
         "id": post.id,
+        "public_id": public_id,
+        "url": get_post_public_url(post),
+        "api_url": get_post_api_url(post),
         "author_id": post.author_id,
         "content": post.content,
         "images": [item for item in (post.image_paths or "").split(",") if item],
@@ -761,6 +925,9 @@ def build_partner_order_export(order: HookOrderDB, db: Session):
             {
                 "sequence": index + 1,
                 "post_id": post.id,
+                "post_public_id": get_post_public_id(post),
+                "post_url": get_post_public_url(post),
+                "post_api_url": get_post_api_url(post),
                 "author_id": post.author_id,
                 "content": post.content or "",
                 "images": [item for item in (post.image_paths or "").split(",") if item],
@@ -1177,6 +1344,8 @@ async def create_post(
 
     post = PostDB(author_id=author_id, content=content, image_paths=",".join(saved_paths))
     db.add(post)
+    db.flush()
+    post.public_id = make_post_public_id(post.id)
     db.commit()
     db.refresh(post)
     return {"message": "Post created successfully", "post": format_post(post, db, author_id)}
@@ -1227,7 +1396,9 @@ def search_posts(q: str, user_id: str = "", db: Session = Depends(get_db)):
     if not q:
         return []
     posts = db.query(PostDB).filter(
-        (PostDB.content.like(f"%{q}%")) | (PostDB.author_id.like(f"%{q}%"))
+        (PostDB.content.like(f"%{q}%")) |
+        (PostDB.author_id.like(f"%{q}%")) |
+        (PostDB.public_id.like(f"%{q}%"))
     ).all()
     visible_posts = filter_posts_for_viewer(posts, db, user_id)
     visible_posts.sort(key=lambda item: item.created_at, reverse=False)
@@ -1237,6 +1408,16 @@ def search_posts(q: str, user_id: str = "", db: Session = Depends(get_db)):
 @app.get("/api/post/{post_id}")
 def get_single_post(post_id: int, user_id: str = "", increment_view: bool = False, db: Session = Depends(get_db)):
     post = db.query(PostDB).filter(PostDB.id == post_id).first()
+    if not post or not filter_posts_for_viewer([post], db, user_id):
+        raise HTTPException(status_code=404, detail="게시글을 찾을 수 없습니다.")
+    if increment_view:
+        record_post_view(post, user_id, db)
+    return format_post(post, db, user_id)
+
+
+@app.get("/api/posts/public/{public_id}")
+def get_single_post_by_public_id(public_id: str, user_id: str = "", increment_view: bool = False, db: Session = Depends(get_db)):
+    post = find_post_by_public_id(db, public_id)
     if not post or not filter_posts_for_viewer([post], db, user_id):
         raise HTTPException(status_code=404, detail="게시글을 찾을 수 없습니다.")
     if increment_view:
@@ -1477,7 +1658,11 @@ def admin_get_posts(token: str, q: str = "", db: Session = Depends(get_db)):
     query = db.query(PostDB)
     term = (q or "").strip()
     if term:
-        query = query.filter((PostDB.content.like(f"%{term}%")) | (PostDB.author_id.like(f"%{term}%")))
+        query = query.filter(
+            (PostDB.content.like(f"%{term}%")) |
+            (PostDB.author_id.like(f"%{term}%")) |
+            (PostDB.public_id.like(f"%{term}%"))
+        )
     posts = query.order_by(PostDB.created_at.desc()).limit(100).all()
     return [serialize_admin_post(post, db) for post in posts]
 
@@ -1928,6 +2113,11 @@ NO_STORE_HEADERS = {
 
 @app.get("/")
 def serve_index():
+    return FileResponse(os.path.join(current_dir, "index.html"), headers=NO_STORE_HEADERS)
+
+
+@app.get("/posts/{public_id}")
+def serve_post_permalink(public_id: str):
     return FileResponse(os.path.join(current_dir, "index.html"), headers=NO_STORE_HEADERS)
 
 
