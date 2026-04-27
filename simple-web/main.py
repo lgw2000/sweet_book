@@ -11,7 +11,6 @@ import json
 import os
 import re
 import secrets
-import shutil
 import string
 import feed_algorithm
 
@@ -25,6 +24,10 @@ OFFENSIVE_WORDS = [
 ]
 
 MENTION_PATTERN = re.compile(r"@([^\s@]+)")
+MAX_UPLOAD_BYTES = 5 * 1024 * 1024
+UPLOAD_CHUNK_BYTES = 1024 * 1024
+ALLOWED_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
+ALLOWED_IMAGE_MIME_TYPES = {"image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif"}
 
 
 def load_env_file(path: str):
@@ -627,11 +630,32 @@ def get_initials(user: UserDB):
 def save_upload(file: UploadFile):
     if not file or not file.filename:
         return ""
-    ext = os.path.splitext(file.filename)[1] or ".png"
+
+    ext = os.path.splitext(file.filename)[1].lower()
+    content_type = (file.content_type or "").split(";", 1)[0].strip().lower()
+    if ext not in ALLOWED_IMAGE_EXTENSIONS:
+        raise HTTPException(status_code=400, detail="지원하지 않는 이미지 확장자입니다.")
+    if content_type not in ALLOWED_IMAGE_MIME_TYPES:
+        raise HTTPException(status_code=400, detail="이미지 파일만 업로드할 수 있습니다.")
+
     filename = f"{secrets.token_hex(8)}{ext}"
     filepath = os.path.join(upload_dir, filename)
-    with open(filepath, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+    total_size = 0
+    try:
+        with open(filepath, "wb") as buffer:
+            while True:
+                chunk = file.file.read(UPLOAD_CHUNK_BYTES)
+                if not chunk:
+                    break
+                total_size += len(chunk)
+                if total_size > MAX_UPLOAD_BYTES:
+                    raise HTTPException(status_code=413, detail="이미지는 5MB 이하만 업로드할 수 있습니다.")
+                buffer.write(chunk)
+    except HTTPException:
+        if os.path.exists(filepath):
+            os.remove(filepath)
+        raise
+
     return f"/static/uploads/{filename}"
 
 
