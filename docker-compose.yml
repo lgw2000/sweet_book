@@ -10,7 +10,7 @@ services:
       DATABASE_URL: sqlite:////app/data/users.db
       SWEET_BOOK_ADMIN_ID: ${SWEET_BOOK_ADMIN_ID:-admin}
       SWEET_BOOK_ADMIN_PASSWORD: ${SWEET_BOOK_ADMIN_PASSWORD:-admin1234}
-      SWEET_BOOK_SEED_DEMO: ${SWEET_BOOK_SEED_DEMO:-true}
+      SWEET_BOOK_SEED_SAMPLE: ${SWEET_BOOK_SEED_SAMPLE:-true}
     volumes:
       - ./simple-web/data:/app/data
       - ./simple-web/static/uploads:/app/static/uploads

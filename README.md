@@ -8,8 +8,6 @@
 
 - 일상 글, 이미지, 댓글, 멘션을 한곳에 기록하고 싶은 사용자
 - 좋아요/저장/작성글을 기반으로 자신의 기록을 책 형태로 구성해 보고 싶은 사용자
-- 콘텐츠 신고, 게시글 삭제, HOOK 주문 상태를 관리해야 하는 운영자
-- 주문 데이터를 외부 파트너에게 전달 가능한 형태로 구조화해야 하는 서비스 기획자/개발자
 
 ### 주요 기능
 
@@ -92,32 +90,23 @@ http://localhost:3000
 
 ### 환경변수
 
-[.env.example](./.env.example)을 복사하면 기본 관리자 계정과 데모 데이터 생성 옵션이 설정됩니다.
+[.env.example](./.env.example)을 복사하면 기본 관리자 계정과 샘플 데이터 생성 옵션이 설정됩니다.
 
 ```env
 SWEET_BOOK_ADMIN_ID=admin
 SWEET_BOOK_ADMIN_PASSWORD=admin1234
-SWEET_BOOK_SEED_DEMO=true
+SWEET_BOOK_SEED_SAMPLE=true
 ```
 
 관리자 계정은 일반 회원가입으로 만들 수 없고, 서버 시작 시 환경변수 기준으로 자동 생성됩니다.
 
-### 데모 데이터
-
-빈 DB로 처음 실행하면 데모 사용자, 샘플 게시글, 댓글, 좋아요/저장, HOOK 책, 주문 데이터가 자동 생성됩니다.
-
-데모 사용자:
-
-```text
-아이디: demo
-비밀번호: demo1234
-```
-
-추가 샘플 사용자:
+### 샘플 계정
 
 ```text
 아이디: lgw2000
 비밀번호: lgw2000
+아이디: glw2000
+비밀번호: glw2000
 ```
 
 관리자:
@@ -127,10 +116,10 @@ SWEET_BOOK_SEED_DEMO=true
 비밀번호: admin1234
 ```
 
-데모 데이터 생성을 끄고 싶다면 `.env`에서 아래처럼 설정합니다.
+빈 DB로 처음 실행하면 위 사용자와 함께 샘플 게시글, 댓글, 좋아요/저장, HOOK 책, 주문 데이터가 자동 생성됩니다. 샘플 데이터 생성을 끄고 싶다면 `.env`에서 아래처럼 설정합니다.
 
 ```env
-SWEET_BOOK_SEED_DEMO=false
+SWEET_BOOK_SEED_SAMPLE=false
 ```
 
 ### 데이터 저장 위치
@@ -186,6 +175,28 @@ docker-compose up --build
 ```text
 GET /api/admin/orders/{order_id}/partner-export?token=<admin-token>
 ```
+
+`<admin-token>`은 관리자 로그인 API가 응답으로 돌려주는 세션 토큰입니다. 관리자 화면에서 `파트너 JSON` 버튼을 누를 때는 프론트엔드가 이 토큰을 자동으로 사용하므로 직접 입력할 필요가 없습니다.
+
+직접 API로 확인하려면 먼저 관리자 로그인을 호출합니다.
+
+```bash
+curl -X POST http://localhost:8000/api/admin/login \
+  -H "Content-Type: application/json" \
+  -d '{"admin_id":"admin","password":"admin1234"}'
+```
+
+응답 예시:
+
+```json
+{
+  "message": "관리자 로그인 성공",
+  "token": "발급된-admin-token",
+  "admin_id": "admin"
+}
+```
+
+그 다음 응답의 `token` 값을 `<admin-token>` 자리에 넣어 호출합니다.
 
 JSON에는 아래 데이터가 포함됩니다.
 
@@ -251,8 +262,7 @@ Browser
 | AI 도구 | 활용 내용 |
 | --- | --- |
 | OpenAI Codex | 기능 구현, FastAPI 라우트 설계, 프론트 상태관리, UI 수정, Docker/README 정리 |
-| ChatGPT | 기능 아이디어 정리, README 문장 구성, 커맨드 모드/HOOK 흐름 설명 보조 |
-| 이미지/텍스트 생성형 AI | 데모 콘텐츠 문구와 샘플 데이터 구성 아이디어 보조 |
+| Antigravity | 화면 흐름 점검, UI/UX 아이디어 검토, 기능 동작 확인 보조 |
 
 AI 도구는 반복 구현 속도를 높이는 데 사용했고, 최종 동작은 로컬 코드와 브라우저에서 확인하는 방식으로 검증했습니다.
 
@@ -272,15 +282,14 @@ AI 도구는 반복 구현 속도를 높이는 데 사용했고, 최종 동작�
 ### 더 시간이 있었다면 추가할 기능
 
 - 완전한 비로그인 게스트 모드
-- 실제 결제/배송 상태 연동
 - 책 미리보기 PDF 또는 인쇄용 레이아웃 생성
 - 이미지 편집, 표지 선택, 페이지 순서 드래그 편집
 - 관리자 신고 처리 상태 변경과 사용자 제재 이력
-- 테스트 코드와 CI 자동화
+- 모바일 버전
 
 ## 7. 일반 사용자 사용법
 
-1. 첫 화면에서 데모 계정으로 로그인하거나 `회원가입`으로 새 계정을 만듭니다.
+1. 첫 화면에서 샘플 계정으로 로그인하거나 `회원가입`으로 새 계정을 만듭니다.
 2. 홈에서 글을 작성하거나 이미지를 첨부합니다.
 3. 글을 클릭해 상세 화면으로 들어갑니다.
 4. 상세 화면에서 댓글과 대댓글을 작성합니다.
@@ -524,17 +533,7 @@ http://localhost:8000
 uvicorn main:app --host 0.0.0.0 --port 3000
 ```
 
-## 14. 제출 전 체크리스트
-
-- Docker Compose 1회 명령 실행 가능: `docker-compose up --build`
-- 포트 변경 가능: [docker-compose.yml](./docker-compose.yml)의 `ports` 수정
-- 데모 데이터 자동 생성: `SWEET_BOOK_SEED_DEMO=true`
-- README 실행 방법 포함
-- Lv1, Lv2, Lv3 구현 내용 문서화
-- GitHub 저장소 Public 설정 필요
-- 제출 전 새 환경에서 `docker-compose down && docker-compose up --build`로 확인 권장
-
-## 15. 문제 해결
+## 14. 문제 해결
 
 포트가 이미 사용 중일 때:
 

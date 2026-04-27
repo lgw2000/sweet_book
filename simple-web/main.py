@@ -345,8 +345,9 @@ def ensure_default_admin():
 ensure_default_admin()
 
 
-def ensure_demo_data():
-    seed_enabled = os.getenv("SWEET_BOOK_SEED_DEMO", "true").lower() not in {"0", "false", "no", "off"}
+def ensure_sample_data():
+    seed_value = os.getenv("SWEET_BOOK_SEED_SAMPLE", "true")
+    seed_enabled = seed_value.lower() not in {"0", "false", "no", "off"}
     if not seed_enabled:
         return
 
@@ -356,15 +357,7 @@ def ensure_demo_data():
             return
 
         now = datetime.utcnow()
-        demo_users = [
-            UserDB(
-                user_id="demo",
-                email="demo@example.com",
-                hashed_password=pwd_context.hash("demo1234"),
-                display_name="Demo Reader",
-                bio="심사용 데모 계정입니다. HOOK 책 만들기와 주문 흐름을 바로 확인할 수 있어요.",
-                interests=json.dumps(["기록", "책", "소셜"], ensure_ascii=False),
-            ),
+        sample_users = [
             UserDB(
                 user_id="lgw2000",
                 email="lgw2000@example.com",
@@ -382,55 +375,55 @@ def ensure_demo_data():
                 interests=json.dumps(["댓글", "피드", "커뮤니티"], ensure_ascii=False),
             ),
         ]
-        db.add_all(demo_users)
+        db.add_all(sample_users)
         db.flush()
 
-        demo_posts = [
+        sample_posts = [
             PostDB(author_id="lgw2000", content="첫 번째 HOOK 샘플 글입니다. 오늘의 기록을 책으로 묶어볼 수 있어요.", likes=3, views=42, created_at=now - timedelta(hours=7)),
-            PostDB(author_id="lgw2000", content="@demo 님에게 공유하고 싶은 두 번째 장면입니다.", likes=2, views=31, created_at=now - timedelta(hours=5)),
-            PostDB(author_id="glw2000", content="댓글과 멘션 알림을 확인하기 위한 데모 게시글입니다.", likes=1, views=18, created_at=now - timedelta(hours=4)),
-            PostDB(author_id="demo", content="저장한 글과 좋아요한 글을 모아서 HOOK 책을 구성해보세요.", likes=4, views=55, created_at=now - timedelta(hours=3)),
+            PostDB(author_id="lgw2000", content="@glw2000 님에게 공유하고 싶은 두 번째 장면입니다.", likes=2, views=31, created_at=now - timedelta(hours=5)),
+            PostDB(author_id="glw2000", content="댓글과 멘션 알림을 확인하기 위한 샘플 게시글입니다.", likes=1, views=18, created_at=now - timedelta(hours=4)),
+            PostDB(author_id="glw2000", content="저장한 글과 좋아요한 글을 모아서 HOOK 책을 구성해보세요.", likes=4, views=55, created_at=now - timedelta(hours=3)),
             PostDB(author_id="lgw2000", content="주문 데이터 JSON 내보내기에 포함될 샘플 콘텐츠입니다.", likes=5, views=77, created_at=now - timedelta(hours=2)),
         ]
-        db.add_all(demo_posts)
+        db.add_all(sample_posts)
         db.flush()
-        for post in demo_posts:
+        for post in sample_posts:
             post.public_id = make_post_public_id(post.id)
 
         db.add_all([
-            LikeDB(post_id=demo_posts[0].id, user_id="demo", created_at=now - timedelta(hours=6)),
-            LikeDB(post_id=demo_posts[1].id, user_id="demo", created_at=now - timedelta(hours=4, minutes=30)),
-            LikeDB(post_id=demo_posts[3].id, user_id="lgw2000", created_at=now - timedelta(hours=2, minutes=40)),
-            SaveDB(post_id=demo_posts[0].id, user_id="demo", created_at=now - timedelta(hours=5, minutes=50)),
-            SaveDB(post_id=demo_posts[4].id, user_id="demo", created_at=now - timedelta(hours=1, minutes=30)),
-            FollowDB(follower_id="demo", following_id="lgw2000", created_at=now - timedelta(hours=5)),
+            LikeDB(post_id=sample_posts[0].id, user_id="glw2000", created_at=now - timedelta(hours=6)),
+            LikeDB(post_id=sample_posts[1].id, user_id="glw2000", created_at=now - timedelta(hours=4, minutes=30)),
+            LikeDB(post_id=sample_posts[3].id, user_id="lgw2000", created_at=now - timedelta(hours=2, minutes=40)),
+            SaveDB(post_id=sample_posts[0].id, user_id="glw2000", created_at=now - timedelta(hours=5, minutes=50)),
+            SaveDB(post_id=sample_posts[4].id, user_id="glw2000", created_at=now - timedelta(hours=1, minutes=30)),
+            FollowDB(follower_id="glw2000", following_id="lgw2000", created_at=now - timedelta(hours=5)),
         ])
 
         reply = ReplyDB(
-            post_id=demo_posts[0].id,
+            post_id=sample_posts[0].id,
             author_id="glw2000",
-            content="@demo 이 글은 댓글/멘션 알림 확인용 샘플 댓글입니다.",
+            content="@lgw2000 이 글은 댓글/멘션 알림 확인용 샘플 댓글입니다.",
             likes=1,
             created_at=now - timedelta(hours=4, minutes=55),
         )
         db.add(reply)
         db.flush()
-        db.add(ReplyLikeDB(reply_id=reply.id, user_id="demo", created_at=now - timedelta(hours=3, minutes=20)))
+        db.add(ReplyLikeDB(reply_id=reply.id, user_id="lgw2000", created_at=now - timedelta(hours=3, minutes=20)))
 
         first_book = HookBookDB(
-            user_id="demo",
-            title="데모 HOOK 책",
+            user_id="lgw2000",
+            title="샘플 HOOK 책",
             source_type="selected",
-            post_ids=json.dumps([demo_posts[0].id, demo_posts[1].id, demo_posts[4].id]),
+            post_ids=json.dumps([sample_posts[0].id, sample_posts[1].id, sample_posts[4].id]),
             status="ordered",
             created_at=now - timedelta(hours=2),
             updated_at=now - timedelta(hours=1, minutes=10),
         )
         second_book = HookBookDB(
-            user_id="demo",
+            user_id="lgw2000",
             title="저장한 글 모음",
             source_type="saved",
-            post_ids=json.dumps([demo_posts[0].id, demo_posts[4].id]),
+            post_ids=json.dumps([sample_posts[0].id, sample_posts[4].id]),
             status="draft",
             created_at=now - timedelta(hours=1),
             updated_at=now - timedelta(hours=1),
@@ -439,15 +432,15 @@ def ensure_demo_data():
         db.flush()
 
         db.add_all([
-            HookOrderDB(user_id="demo", book_id=first_book.id, status="pending", memo="심사용 샘플 주문입니다.", created_at=now - timedelta(hours=1), updated_at=now - timedelta(hours=1)),
-            HookOrderDB(user_id="demo", book_id=first_book.id, status="processing", memo="상태 변경 확인용 주문입니다.", created_at=now - timedelta(minutes=50), updated_at=now - timedelta(minutes=30)),
+            HookOrderDB(user_id="lgw2000", book_id=first_book.id, status="pending", memo="심사용 샘플 주문입니다.", created_at=now - timedelta(hours=1), updated_at=now - timedelta(hours=1)),
+            HookOrderDB(user_id="lgw2000", book_id=first_book.id, status="processing", memo="상태 변경 확인용 주문입니다.", created_at=now - timedelta(minutes=50), updated_at=now - timedelta(minutes=30)),
         ])
         db.commit()
     finally:
         db.close()
 
 
-ensure_demo_data()
+ensure_sample_data()
 
 
 class SignupRequest(BaseModel):
